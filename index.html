@@ -25,7 +25,12 @@
 
         <div class="nav-label" data-i18n="sections">الأقسام</div>
         <nav class="section-nav" aria-label="أقسام الإنتاجية" data-i18n-aria="sections">
-          <button class="nav-item is-active" type="button" data-view="sorting" aria-current="page">
+          <button class="nav-item is-active" type="button" data-view="overview" aria-current="page">
+            <span class="nav-icon" aria-hidden="true">▦</span>
+            <span data-i18n="overview">نظرة عامة</span>
+            <span class="nav-arrow" aria-hidden="true">‹</span>
+          </button>
+          <button class="nav-item" type="button" data-view="sorting">
             <span class="nav-icon" aria-hidden="true">↗</span>
             <span data-i18n="sorting">السورتينج</span>
             <span class="nav-arrow" aria-hidden="true">‹</span>
@@ -85,7 +90,73 @@
           <span data-i18n="loading">بنحمّل بيانات الشيت...</span>
         </div>
 
-        <section class="dashboard-view is-visible" id="sortingView" aria-labelledby="sortingHeading">
+        <section class="dashboard-view is-visible" id="overviewView" aria-labelledby="overviewHeading">
+          <h2 class="visually-hidden" id="overviewHeading" data-i18n="overview">نظرة عامة</h2>
+          <div class="kpi-grid overview-kpis">
+            <article class="kpi-card overview-kpi">
+              <div class="kpi-top"><span data-i18n="sortedTotal">إجمالي القطع المسورتة</span><span class="kpi-icon green" aria-hidden="true">↗</span></div>
+              <div class="kpi-value" id="overviewSortedTotal">—</div>
+              <div class="kpi-foot" data-i18n="overviewSortingCaption">من السورتينج في التاريخ المحدد</div>
+            </article>
+            <article class="kpi-card overview-kpi">
+              <div class="kpi-top"><span data-i18n="containerTotal">إجمالي الحاويات</span><span class="kpi-icon amber" aria-hidden="true">▤</span></div>
+              <div class="kpi-value" id="overviewStagingTotal">—</div>
+              <div class="kpi-foot" data-i18n="overviewStagingCaption">حاويات staging فريدة</div>
+            </article>
+            <article class="kpi-card overview-kpi">
+              <div class="kpi-top"><span data-i18n="activeEmployees">موظفون نشطون</span><span class="kpi-icon blue" aria-hidden="true">♙</span></div>
+              <div class="kpi-value" id="overviewEmployeeCount">—</div>
+              <div class="kpi-foot" data-i18n="overviewEmployeeCaption">في السورتينج والـ staging</div>
+            </article>
+            <article class="kpi-card overview-kpi">
+              <div class="kpi-top"><span data-i18n="peakHour">أعلى ساعة إنتاجًا</span><span class="kpi-icon amber" aria-hidden="true">◷</span></div>
+              <div class="kpi-value kpi-value-hour" id="overviewPeakHour">—</div>
+              <div class="kpi-foot" id="overviewPeakHourFoot">لا توجد مهام مكتملة</div>
+            </article>
+          </div>
+
+          <div class="overview-grid">
+            <article class="panel overview-chart-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2 data-i18n="overviewHourlyTitle">حركة السورتينج بالساعة</h2>
+                  <p data-i18n="overviewHourlyCaption">إجمالي القطع المكتملة خلال كل ساعة.</p>
+                </div>
+                <span class="overview-chart-legend"><i aria-hidden="true"></i><span data-i18n="sortedTotal">إجمالي القطع المسورتة</span></span>
+              </div>
+              <div class="hourly-chart" id="overviewHourlyChart" role="img" aria-label="إنتاج السورتينج بالساعة"></div>
+              <div class="empty-state overview-empty" id="overviewChartEmpty" hidden>
+                <span aria-hidden="true">◌</span>
+                <strong data-i18n="noSortingData">مفيش بيانات سورتينج للتاريخ ده</strong>
+                <small data-i18n="chooseAnotherDate">اختار تاريخ تاني أو حدّث البيانات.</small>
+              </div>
+            </article>
+
+            <article class="panel overview-ranking-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2 data-i18n="topSorters">أعلى sorters إنتاجًا</h2>
+                  <p data-i18n="topSortersCaption">ترتيب حسب إجمالي القطع المسورتة.</p>
+                </div>
+                <button class="panel-link" type="button" data-go-view="sorting" data-i18n="viewDetails">عرض التفاصيل</button>
+              </div>
+              <div class="overview-ranking-list" id="overviewSorterRanking"></div>
+            </article>
+
+            <article class="panel overview-ranking-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2 data-i18n="topStagers">أعلى موظفي staging إنتاجًا</h2>
+                  <p data-i18n="topStagersCaption">ترتيب حسب عدد الحاويات الفريدة.</p>
+                </div>
+                <button class="panel-link" type="button" data-go-view="staging" data-i18n="viewDetails">عرض التفاصيل</button>
+              </div>
+              <div class="overview-ranking-list" id="overviewStagerRanking"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="dashboard-view" id="sortingView" aria-labelledby="sortingHeading" hidden>
           <h2 class="visually-hidden" id="sortingHeading" data-i18n="sortingProductivity">إنتاجية السورتينج</h2>
           <div class="kpi-grid">
             <article class="kpi-card">

@@ -4,13 +4,27 @@ const ATTENDANCE_ID = "1GaMh4GIfanzEvJYpbtvuVLpawERz_-kRzSrWyqovpXs";
 const ATTENDANCE_URL = `https://docs.google.com/spreadsheets/d/${ATTENDANCE_ID}/gviz/tq`;
 const numberFormat = new Intl.NumberFormat("en-US");
 const dateInput = document.querySelector("#reportDate");
-const state = { sorting: [], staging: [], attendance: new Map(), activeView: "sorting", loaded: false, error: null };
+const state = { sorting: [], staging: [], attendance: new Map(), activeView: "overview", loaded: false, error: null };
 const translations = {
   ar: {
     brandTitle: "مؤشر الإنتاجية", brandSubtitle: "لوحة متابعة العمليات", sections: "الأقسام",
     languageSelect: "اختيار اللغة",
     sorting: "السورتينج", staging: "الـ staging", connected: "متصل ببيانات الشيت",
     operations: "العمليات", teamPerformance: "متابعة أداء الفريق",
+    overview: "نظرة عامة", overviewTitle: "لوحة الإنتاجية",
+    overviewSubtitle: "ملخص إنتاج السورتينج والـ staging في التاريخ المحدد.",
+    overviewSortingCaption: "من السورتينج في التاريخ المحدد",
+    overviewStagingCaption: "حاويات staging فريدة",
+    activeEmployees: "موظفون نشطون",
+    overviewEmployeeCaption: "في السورتينج والـ staging",
+    overviewHourlyTitle: "حركة السورتينج بالساعة",
+    overviewHourlyCaption: "إجمالي القطع المكتملة خلال كل ساعة.",
+    topSorters: "أعلى sorters إنتاجًا",
+    topSortersCaption: "ترتيب حسب إجمالي القطع المسورتة.",
+    topStagers: "أعلى موظفي staging إنتاجًا",
+    topStagersCaption: "ترتيب حسب عدد الحاويات الفريدة.",
+    viewDetails: "عرض التفاصيل",
+    unitsPieces: "قطعة", unitsContainers: "حاوية",
     sortingTitle: "أداء السورتينج", stagingTitle: "أداء الـ staging",
     sortingSubtitle: "إنتاج كل sorter موزّع على ساعات العمل.",
     stagingSubtitle: "عدد الحاويات المسجلة لكل موظف في الـ staging.",
@@ -53,6 +67,20 @@ const translations = {
     languageSelect: "Select language",
     sorting: "Sorting", staging: "Staging", connected: "Connected to sheet data",
     operations: "Operations", teamPerformance: "Team performance",
+    overview: "Overview", overviewTitle: "Productivity overview",
+    overviewSubtitle: "Sorting and staging output for the selected date.",
+    overviewSortingCaption: "From sorting on the selected date",
+    overviewStagingCaption: "Unique staged containers",
+    activeEmployees: "Active employees",
+    overviewEmployeeCaption: "Across sorting and staging",
+    overviewHourlyTitle: "Hourly sorting activity",
+    overviewHourlyCaption: "Total items completed in each hour.",
+    topSorters: "Top sorters",
+    topSortersCaption: "Ranked by total items sorted.",
+    topStagers: "Top staging employees",
+    topStagersCaption: "Ranked by unique containers staged.",
+    viewDetails: "View details",
+    unitsPieces: "items", unitsContainers: "containers",
     sortingTitle: "Sorting performance", stagingTitle: "Staging performance",
     sortingSubtitle: "Each sorter's output, broken down by hour.",
     stagingSubtitle: "Containers registered by each staging employee.",
@@ -115,8 +143,13 @@ function applyLanguage() {
   document.querySelector("#arabicButton").setAttribute("aria-pressed", String(state.language === "ar"));
   document.querySelector("#englishButton").setAttribute("aria-pressed", String(state.language === "en"));
   document.querySelector("#breadcrumbCurrent").textContent = t(state.activeView);
-  document.querySelector("#pageTitle").textContent = t(state.activeView === "sorting" ? "sortingTitle" : "stagingTitle");
-  document.querySelector("#pageSubtitle").textContent = t(state.activeView === "sorting" ? "sortingSubtitle" : "stagingSubtitle");
+  const viewLabels = {
+    overview: ["overviewTitle", "overviewSubtitle"],
+    sorting: ["sortingTitle", "sortingSubtitle"],
+    staging: ["stagingTitle", "stagingSubtitle"],
+  };
+  document.querySelector("#pageTitle").textContent = t(viewLabels[state.activeView][0]);
+  document.querySelector("#pageSubtitle").textContent = t(viewLabels[state.activeView][1]);
   updateUpdatedLabel();
   renderTheme();
   renderActiveView();
@@ -373,6 +406,79 @@ function renderStaging() {
   document.querySelector("#stagingFooter").innerHTML = `<span>${t("stagingFooterCount", { count: visiblePeople.length })}</span><span>${t("totalContainers", { count: numberFormat.format(total) })}</span>`;
 }
 
+function renderOverview() {
+  const sorting = getSortingReport();
+  const staging = getStagingReport();
+  const employees = new Set([
+    ...sorting.people.map(([identifier]) => employeeUsername(identifier).toLowerCase()),
+    ...staging.people.map(([identifier]) => employeeUsername(identifier).toLowerCase()),
+  ]);
+  const hourlyTotals = sorting.hours.map((hour) => ({
+    hour,
+    total: sorting.people.reduce((sum, [, person]) => sum + (person.hours.get(hour) || 0), 0),
+  }));
+  const maxHourlyTotal = Math.max(0, ...hourlyTotals.map(({ total }) => total));
+
+  document.querySelector("#overviewSortedTotal").textContent = numberFormat.format(sorting.total);
+  document.querySelector("#overviewStagingTotal").textContent = numberFormat.format(staging.total);
+  document.querySelector("#overviewEmployeeCount").textContent = numberFormat.format(employees.size);
+  document.querySelector("#overviewPeakHour").textContent = sorting.peak ? formatHour(sorting.peak[0]) : "—";
+  document.querySelector("#overviewPeakHourFoot").textContent = sorting.peak
+    ? t("peakHourTotal", { count: numberFormat.format(sorting.peak[1]) })
+    : t("noCompletedTasks");
+
+  const chart = document.querySelector("#overviewHourlyChart");
+  const chartEmpty = document.querySelector("#overviewChartEmpty");
+  chart.setAttribute("aria-label", `${t("overviewHourlyTitle")}: ${t("sorting")}`);
+  chart.hidden = hourlyTotals.length === 0;
+  chartEmpty.hidden = hourlyTotals.length > 0;
+  chart.innerHTML = hourlyTotals.map(({ hour, total }) => {
+    const width = maxHourlyTotal ? total / maxHourlyTotal * 100 : 0;
+    return `<div class="hourly-chart-row" title="${escapeHtml(formatHour(hour))}: ${escapeHtml(numberFormat.format(total))}">
+      <span class="hourly-chart-hour">${formatHour(hour)}</span>
+      <span class="hourly-chart-track"><span class="hourly-chart-bar" style="width:${width}%"></span></span>
+      <strong class="hourly-chart-value">${numberFormat.format(total)}</strong>
+    </div>`;
+  }).join("");
+
+  renderOverviewRanking(
+    "#overviewSorterRanking",
+    sorting.people.map(([identifier, person]) => [identifier, person.total]).slice(0, 5),
+    sorting.total,
+    t("unitsPieces"),
+    t("noSortingData"),
+  );
+  renderOverviewRanking(
+    "#overviewStagerRanking",
+    staging.people.slice(0, 5),
+    staging.total,
+    t("unitsContainers"),
+    t("noStagingData"),
+  );
+}
+
+function renderOverviewRanking(selector, people, total, unitLabel, emptyMessage) {
+  const container = document.querySelector(selector);
+  if (people.length === 0) {
+    container.innerHTML = `<div class="overview-ranking-empty">${escapeHtml(emptyMessage)}</div>`;
+    return;
+  }
+
+  const highest = people[0][1];
+  container.innerHTML = people.map(([identifier, amount], index) => {
+    const percent = highest ? amount / highest * 100 : 0;
+    const share = total ? Math.round(amount / total * 100) : 0;
+    return `<div class="overview-ranking-row">
+      <span class="overview-rank">${index + 1}</span>
+      <span class="overview-rank-details">${personCell(identifier)}
+        <span class="overview-rank-track" aria-hidden="true"><span style="width:${percent}%"></span></span>
+      </span>
+      <strong class="overview-rank-total">${numberFormat.format(amount)}<small>${escapeHtml(unitLabel)}</small></strong>
+      <span class="overview-rank-share">${share}%</span>
+    </div>`;
+  }).join("");
+}
+
 function exportWorkbook() {
   if (!state.loaded) throw new Error(t("noDataLoaded"));
   if (!window.XLSX) throw new Error(t("noExcelLibrary"));
@@ -449,7 +555,8 @@ function escapeHtml(value) {
 }
 
 function renderActiveView() {
-  if (state.activeView === "sorting") renderSorting();
+  if (state.activeView === "overview") renderOverview();
+  else if (state.activeView === "sorting") renderSorting();
   else renderStaging();
 }
 
@@ -503,14 +610,20 @@ async function loadData() {
 
 function setActiveView(view) {
   state.activeView = view;
-  const isSorting = view === "sorting";
-  document.querySelector("#sortingView").hidden = !isSorting;
-  document.querySelector("#stagingView").hidden = isSorting;
-  document.querySelector("#sortingView").classList.toggle("is-visible", isSorting);
-  document.querySelector("#stagingView").classList.toggle("is-visible", !isSorting);
-  document.querySelector("#pageTitle").textContent = t(isSorting ? "sortingTitle" : "stagingTitle");
-  document.querySelector("#pageSubtitle").textContent = t(isSorting ? "sortingSubtitle" : "stagingSubtitle");
-  document.querySelector("#breadcrumbCurrent").textContent = t(isSorting ? "sorting" : "staging");
+  for (const currentView of ["overview", "sorting", "staging"]) {
+    const section = document.querySelector(`#${currentView}View`);
+    const isActive = currentView === view;
+    section.hidden = !isActive;
+    section.classList.toggle("is-visible", isActive);
+  }
+  const viewLabels = {
+    overview: ["overviewTitle", "overviewSubtitle"],
+    sorting: ["sortingTitle", "sortingSubtitle"],
+    staging: ["stagingTitle", "stagingSubtitle"],
+  };
+  document.querySelector("#pageTitle").textContent = t(viewLabels[view][0]);
+  document.querySelector("#pageSubtitle").textContent = t(viewLabels[view][1]);
+  document.querySelector("#breadcrumbCurrent").textContent = t(view);
   document.querySelectorAll(".nav-item").forEach((button) => {
     const active = button.dataset.view === view;
     button.classList.toggle("is-active", active);
@@ -523,6 +636,9 @@ function setActiveView(view) {
 dateInput.value = localDateValue();
 document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => setActiveView(button.dataset.view));
+});
+document.querySelectorAll("[data-go-view]").forEach((button) => {
+  button.addEventListener("click", () => setActiveView(button.dataset.goView));
 });
 dateInput.addEventListener("change", renderActiveView);
 document.querySelector("#sorterSearch").addEventListener("input", renderSorting);
