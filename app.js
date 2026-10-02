@@ -4,6 +4,8 @@ const ATTENDANCE_ID = "1GaMh4GIfanzEvJYpbtvuVLpawERz_-kRzSrWyqovpXs";
 const ATTENDANCE_URL = `https://docs.google.com/spreadsheets/d/${ATTENDANCE_ID}/gviz/tq`;
 const numberFormat = new Intl.NumberFormat("en-US");
 const dateInput = document.querySelector("#reportDate");
+const workStartInput = document.querySelector("#workStartTime");
+const workEndInput = document.querySelector("#workEndTime");
 const state = { sorting: [], staging: [], attendance: new Map(), activeView: "overview", loaded: false, error: null };
 const translations = {
   ar: {
@@ -14,7 +16,7 @@ const translations = {
     overview: "نظرة عامة", overviewTitle: "لوحة الإنتاجية",
     overviewSubtitle: "ملخص إنتاج السورتينج والـ staging في التاريخ المحدد.",
     overviewSortingCaption: "من السورتينج في التاريخ المحدد",
-    overviewStagingCaption: "حاويات staging فريدة",
+    overviewStagingCaption: "عدد التوت الفريدة في staging",
     activeEmployees: "موظفون نشطون",
     overviewEmployeeCaption: "في السورتينج والـ staging",
     overviewHourlyTitle: "حركة السورتينج بالساعة",
@@ -22,13 +24,15 @@ const translations = {
     topSorters: "أعلى sorters إنتاجًا",
     topSortersCaption: "ترتيب حسب إجمالي القطع المسورتة.",
     topStagers: "أعلى موظفي staging إنتاجًا",
-    topStagersCaption: "ترتيب حسب عدد الحاويات الفريدة.",
+    topStagersCaption: "ترتيب حسب عدد التوت الفريدة.",
     viewDetails: "عرض التفاصيل",
-    unitsPieces: "قطعة", unitsContainers: "حاوية",
+    unitsPieces: "قطعة", unitsContainers: "توت",
     sortingTitle: "أداء السورتينج", stagingTitle: "أداء الـ staging",
     sortingSubtitle: "إنتاج كل sorter موزّع على ساعات العمل.",
-    stagingSubtitle: "عدد الحاويات المسجلة لكل موظف في الـ staging.",
-    reportDate: "تاريخ التقرير", loading: "بنحمّل بيانات الشيت...",
+    stagingSubtitle: "عدد التوت المسجلة لكل موظف في الـ staging.",
+    reportDate: "تاريخ التقرير", workHours: "وقت العمل", fromTime: "من الساعة", toTime: "إلى الساعة",
+    workHoursHint: "الساعتان مشمولتان، والنهاية الأسبق تعبر لليوم التالي",
+    loading: "بنحمّل بيانات الشيت...",
     sortingProductivity: "إنتاجية السورتينج", sortedTotal: "إجمالي القطع المسورتة",
     sortedQtyCaption: "sorted_qty خلال اليوم المحدد", sorterCount: "عدد الـ sorters",
     sorterCountCaption: "موظفين لديهم إنتاج مسجل", peakHour: "أعلى ساعة إنتاجًا",
@@ -37,17 +41,17 @@ const translations = {
     sortingByHourCaption: "الكمية محسوبة حسب ساعة إكمال مهمة السورتينج.",
     searchSorter: "ابحث عن sorter", noSortingData: "مفيش بيانات سورتينج للتاريخ ده",
     chooseAnotherDate: "اختار تاريخ تاني أو حدّث البيانات.",
-    sortingHeader: "الـ sorter", rank: "#", total: "الإجمالي",
-    sortingFooterCount: "{count} sorter", totalPieces: "الإجمالي: {count} قطعة",
-    stagingProductivity: "إنتاجية الـ staging", containerTotal: "إجمالي الحاويات",
-    uniqueContainerTotal: "عدد الـ container_barcode الفريدة",
-    stagerCount: "عدد موظفي staging", stagerCountCaption: "موظفين لديهم حاويات مسجلة",
-    topProduction: "أعلى إنتاج", topStagerCount: "{count} حاوية",
-    noStagingRecords: "لا توجد سجلات staging", containersPerEmployee: "الحاويات لكل موظف",
-    containersPerEmployeeCaption: "عدد الـ container_barcode الفريدة لكل staged_by في التاريخ المحدد.",
-    searchEmployee: "ابحث عن موظف", employee: "الموظف", containerCount: "عدد الحاويات",
+    sortingHeader: "الـ sorter", rank: "#", total: "إجمالي sorted_qty", skippedQty: "إجمالي skipped_qty",
+    sortingFooterCount: "{count} sorter", totalPieces: "إجمالي sorted_qty: {count} قطعة", totalSkipped: "إجمالي skipped_qty: {count}",
+    stagingProductivity: "إنتاجية الـ staging", containerTotal: "إجمالي التوت",
+    uniqueContainerTotal: "عدد التوت الفريدة",
+    stagerCount: "عدد موظفي staging", stagerCountCaption: "موظفين لديهم توت مسجل",
+    topProduction: "أعلى إنتاج", topStagerCount: "{count} توت",
+    noStagingRecords: "لا توجد سجلات staging", containersPerEmployee: "التوت لكل موظف",
+    containersPerEmployeeCaption: "عدد التوت الفريدة لكل موظف staging في التاريخ المحدد.",
+    searchEmployee: "ابحث عن موظف", employee: "الموظف", containerCount: "عدد التوت",
     shareOfTotal: "نسبة من الإجمالي", noStagingData: "مفيش بيانات staging للتاريخ ده",
-    stagingFooterCount: "{count} موظف", totalContainers: "الإجمالي: {count} حاوية فريدة",
+    stagingFooterCount: "{count} موظف", totalContainers: "إجمالي التوت: {count}",
     dataSource: "مصدر البيانات: Google Sheets", calculatedFromSheet: "يتم احتساب الإنتاج من سجلات الشيت",
     downloadExcel: "تحميل Excel", refresh: "تحديث البيانات",
     dayShift: "الوضع النهاري", nightShift: "الوضع الليلي",
@@ -60,7 +64,7 @@ const translations = {
     employeeCount: "عدد الموظفين", outputTotal: "إجمالي الإنتاج",
     highestSortingHour: "أعلى ساعة سورتينج", employeeName: "اسم الموظف",
     username: "username", totalQuantity: "الإجمالي (قطعة)",
-    uniqueContainers: "عدد الحاويات الفريدة", percentageTotal: "النسبة من الإجمالي",
+    uniqueContainers: "عدد التوت الفريدة", percentageTotal: "النسبة من الإجمالي",
   },
   en: {
     brandTitle: "Productivity Tracker", brandSubtitle: "Operations dashboard", sections: "Sections",
@@ -70,7 +74,7 @@ const translations = {
     overview: "Overview", overviewTitle: "Productivity overview",
     overviewSubtitle: "Sorting and staging output for the selected date.",
     overviewSortingCaption: "From sorting on the selected date",
-    overviewStagingCaption: "Unique staged containers",
+    overviewStagingCaption: "Unique staged totes",
     activeEmployees: "Active employees",
     overviewEmployeeCaption: "Across sorting and staging",
     overviewHourlyTitle: "Hourly sorting activity",
@@ -78,13 +82,15 @@ const translations = {
     topSorters: "Top sorters",
     topSortersCaption: "Ranked by total items sorted.",
     topStagers: "Top staging employees",
-    topStagersCaption: "Ranked by unique containers staged.",
+    topStagersCaption: "Ranked by unique totes staged.",
     viewDetails: "View details",
-    unitsPieces: "items", unitsContainers: "containers",
+    unitsPieces: "items", unitsContainers: "totes",
     sortingTitle: "Sorting performance", stagingTitle: "Staging performance",
     sortingSubtitle: "Each sorter's output, broken down by hour.",
-    stagingSubtitle: "Containers registered by each staging employee.",
-    reportDate: "Report date", loading: "Loading sheet data...",
+    stagingSubtitle: "Totes registered by each staging employee.",
+    reportDate: "Report date", workHours: "Work hours", fromTime: "From", toTime: "To",
+    workHoursHint: "Both hours are included; an earlier end time continues into the next day.",
+    loading: "Loading sheet data...",
     sortingProductivity: "Sorting productivity", sortedTotal: "Total items sorted",
     sortedQtyCaption: "sorted_qty for the selected date", sorterCount: "Sorters",
     sorterCountCaption: "Employees with recorded output", peakHour: "Most productive hour",
@@ -93,17 +99,17 @@ const translations = {
     sortingByHourCaption: "Quantities are grouped by the job completion hour.",
     searchSorter: "Search sorters", noSortingData: "No sorting data for this date",
     chooseAnotherDate: "Choose another date or refresh the data.",
-    sortingHeader: "Sorter", rank: "#", total: "Total",
-    sortingFooterCount: "{count} sorters", totalPieces: "Total: {count} items",
-    stagingProductivity: "Staging productivity", containerTotal: "Total containers",
-    uniqueContainerTotal: "Unique container_barcode count",
-    stagerCount: "Staging employees", stagerCountCaption: "Employees with recorded containers",
-    topProduction: "Top output", topStagerCount: "{count} containers",
-    noStagingRecords: "No staging records", containersPerEmployee: "Containers per employee",
-    containersPerEmployeeCaption: "Unique container_barcode count per staged_by for the selected date.",
-    searchEmployee: "Search employees", employee: "Employee", containerCount: "Containers",
+    sortingHeader: "Sorter", rank: "#", total: "Total sorted_qty", skippedQty: "Total skipped_qty",
+    sortingFooterCount: "{count} sorters", totalPieces: "Total sorted_qty: {count} items", totalSkipped: "Total skipped_qty: {count}",
+    stagingProductivity: "Staging productivity", containerTotal: "Total totes",
+    uniqueContainerTotal: "Unique tote count",
+    stagerCount: "Staging employees", stagerCountCaption: "Employees with recorded totes",
+    topProduction: "Top output", topStagerCount: "{count} totes",
+    noStagingRecords: "No staging records", containersPerEmployee: "Totes per employee",
+    containersPerEmployeeCaption: "Unique totes staged by each employee for the selected date.",
+    searchEmployee: "Search employees", employee: "Employee", containerCount: "Totes",
     shareOfTotal: "Share of total", noStagingData: "No staging data for this date",
-    stagingFooterCount: "{count} employees", totalContainers: "Total: {count} unique containers",
+    stagingFooterCount: "{count} employees", totalContainers: "Total: {count} unique totes",
     dataSource: "Data source: Google Sheets", calculatedFromSheet: "Output is calculated from sheet records",
     downloadExcel: "Download Excel", refresh: "Refresh data",
     dayShift: "Light mode", nightShift: "Dark mode",
@@ -116,7 +122,7 @@ const translations = {
     employeeCount: "Employees", outputTotal: "Total output",
     highestSortingHour: "Most productive sorting hour", employeeName: "Employee name",
     username: "Username", totalQuantity: "Total (items)",
-    uniqueContainers: "Unique containers", percentageTotal: "Share of total",
+    uniqueContainers: "Unique totes", percentageTotal: "Share of total",
   },
 };
 
@@ -269,9 +275,27 @@ function selectedRows(rows, timestampField) {
   const selectedDate = dateInput.value;
   return rows.flatMap((row) => {
     const timestamp = parseSheetDate(row[timestampField], row[`${timestampField}__formatted`]);
-    if (!timestamp || getDateKey(timestamp) !== selectedDate) return [];
+    if (!timestamp || !isWithinSelectedWorkHours(timestamp, selectedDate)) return [];
     return [{ ...row, _timestamp: timestamp }];
   });
+}
+
+function isWithinSelectedWorkHours(timestamp, selectedDate) {
+  const startHour = Number(workStartInput.value);
+  const endHour = Number(workEndInput.value);
+  const timestampDate = getDateKey(timestamp);
+
+  if (startHour <= endHour) {
+    return timestampDate === selectedDate
+      && timestamp.getHours() >= startHour
+      && timestamp.getHours() <= endHour;
+  }
+
+  const nextDate = new Date(`${selectedDate}T00:00:00`);
+  nextDate.setDate(nextDate.getDate() + 1);
+  const nextDateKey = localDateValue(nextDate);
+  return (timestampDate === selectedDate && timestamp.getHours() >= startHour)
+    || (timestampDate === nextDateKey && timestamp.getHours() <= endHour);
 }
 
 function currentSortingRows() {
@@ -303,18 +327,27 @@ function employeeMatches(identifier, query) {
 }
 
 function getSortingReport() {
-  const rows = currentSortingRows().filter((row) => row.sorter && Number(row.sorted_qty) > 0);
-  const hours = [...new Set(rows.map((row) => row._timestamp.getHours()))].sort((a, b) => a - b);
+  const rows = currentSortingRows().filter((row) => row.sorter
+    && (Number(row.sorted_qty) > 0 || Number(row.skipped_qty) > 0));
+  const startHour = Number(workStartInput.value);
+  const hours = [...new Set(rows
+    .filter((row) => Number(row.sorted_qty) > 0)
+    .map((row) => row._timestamp.getHours()))]
+    .sort((a, b) => ((a - startHour + 24) % 24) - ((b - startHour + 24) % 24));
   const people = new Map();
+  let skippedTotal = 0;
 
   for (const row of rows) {
     const sorter = String(row.sorter).trim();
     const hour = row._timestamp.getHours();
     const quantity = Number(row.sorted_qty) || 0;
-    if (!people.has(sorter)) people.set(sorter, { total: 0, hours: new Map() });
+    const skipped = Number(row.skipped_qty) || 0;
+    if (!people.has(sorter)) people.set(sorter, { total: 0, skipped: 0, hours: new Map() });
     const person = people.get(sorter);
     person.total += quantity;
-    person.hours.set(hour, (person.hours.get(hour) || 0) + quantity);
+    person.skipped += skipped;
+    skippedTotal += skipped;
+    if (quantity > 0) person.hours.set(hour, (person.hours.get(hour) || 0) + quantity);
   }
 
   const sortedPeople = [...people.entries()].sort((a, b) => b[1].total - a[1].total);
@@ -324,11 +357,11 @@ function getSortingReport() {
     sortedPeople.reduce((sum, [, person]) => sum + (person.hours.get(hour) || 0), 0),
   ]));
   const peak = [...hourlyTotals.entries()].sort((a, b) => b[1] - a[1])[0];
-  return { hours, people: sortedPeople, total, peak };
+  return { hours, people: sortedPeople, total, skippedTotal, peak };
 }
 
 function renderSorting() {
-  const { hours, people, total, peak } = getSortingReport();
+  const { hours, people, total, skippedTotal, peak } = getSortingReport();
   document.querySelector("#sortingTotal").textContent = numberFormat.format(total);
   document.querySelector("#sorterCount").textContent = numberFormat.format(people.length);
   document.querySelector("#peakHour").textContent = peak ? formatHour(peak[0]) : "—";
@@ -339,7 +372,7 @@ function renderSorting() {
   document.querySelector("#sortingHead").innerHTML = `
     <tr><th scope="col">${t("sortingHeader")}</th><th scope="col" class="rank-cell">${t("rank")}</th>
       ${hours.map((hour) => `<th scope="col">${formatHour(hour)}</th>`).join("")}
-      <th scope="col">${t("total")}</th></tr>`;
+      <th scope="col">${t("skippedQty")}</th><th scope="col">${t("total")}</th></tr>`;
 
   const query = document.querySelector("#sorterSearch").value.trim();
   const visiblePeople = people.filter(([identifier]) => employeeMatches(identifier, query));
@@ -351,13 +384,14 @@ function renderSorting() {
         const quantity = person.hours.get(hour) || 0;
         return `<td class="${quantity ? "hour-has-value" : ""}">${quantity ? numberFormat.format(quantity) : "—"}</td>`;
       }).join("")}
+      <td><span class="total-pill">${numberFormat.format(person.skipped)}</span></td>
       <td><span class="total-pill">${numberFormat.format(person.total)}</span></td>
     </tr>`).join("");
 
   const isEmpty = visiblePeople.length === 0;
   document.querySelector("#sortingEmpty").hidden = !isEmpty;
   document.querySelector(".sorting-table").hidden = isEmpty;
-  document.querySelector("#sortingFooter").innerHTML = `<span>${t("sortingFooterCount", { count: visiblePeople.length })}</span><span>${t("totalPieces", { count: numberFormat.format(total) })}</span>`;
+  document.querySelector("#sortingFooter").innerHTML = `<span>${t("sortingFooterCount", { count: visiblePeople.length })}</span><span>${t("totalPieces", { count: numberFormat.format(total) })}</span><span>${t("totalSkipped", { count: numberFormat.format(skippedTotal) })}</span>`;
 }
 
 function getStagingReport() {
@@ -443,7 +477,8 @@ function renderOverview() {
 
   renderOverviewRanking(
     "#overviewSorterRanking",
-    sorting.people.map(([identifier, person]) => [identifier, person.total]).slice(0, 5),
+    sorting.people.filter(([, person]) => person.total > 0)
+      .map(([identifier, person]) => [identifier, person.total]).slice(0, 5),
     sorting.total,
     t("unitsPieces"),
     t("noSortingData"),
@@ -489,20 +524,23 @@ function exportWorkbook() {
   const summaryRows = [
     [t("reportTitle")],
     [t("reportDate"), dateInput.value],
+    [t("workHours"), `${formatHour(Number(workStartInput.value))} – ${formatHour(Number(workEndInput.value))}`],
     [],
     [t("department"), t("employeeCount"), t("outputTotal")],
     [t("sorting"), sorting.people.length, sorting.total],
     [t("staging"), staging.people.length, staging.total],
     [t("highestSortingHour"), sorting.peak ? formatHour(sorting.peak[0]) : "—", sorting.peak?.[1] || 0],
+    [t("totalSkipped"), sorting.skippedTotal],
   ];
   const sortingRows = [
-    [t("rank"), t("employeeName"), t("username"), ...sorting.hours.map(formatHour), t("totalQuantity")],
+    [t("rank"), t("employeeName"), t("username"), ...sorting.hours.map(formatHour), t("totalQuantity"), t("skippedQty")],
     ...sorting.people.map(([identifier, person], index) => [
       index + 1,
       attendanceName(identifier),
       employeeUsername(identifier),
       ...sorting.hours.map((hour) => person.hours.get(hour) || 0),
       person.total,
+      person.skipped,
     ]),
   ];
   const stagingRows = [
@@ -526,7 +564,7 @@ function exportWorkbook() {
     }
   }
   summarySheet["!cols"] = [{ wch: 24 }, { wch: 27 }, { wch: 20 }];
-  sortingSheet["!cols"] = [{ wch: 6 }, { wch: 36 }, { wch: 22 }, ...sorting.hours.map(() => ({ wch: 13 })), { wch: 18 }];
+  sortingSheet["!cols"] = [{ wch: 6 }, { wch: 36 }, { wch: 22 }, ...sorting.hours.map(() => ({ wch: 13 })), { wch: 18 }, { wch: 18 }];
   stagingSheet["!cols"] = [{ wch: 6 }, { wch: 36 }, { wch: 22 }, { wch: 22 }, { wch: 22 }];
   window.XLSX.utils.book_append_sheet(workbook, summarySheet, t("summarySheetName"));
   window.XLSX.utils.book_append_sheet(workbook, sortingSheet, t("sortingSheetName"));
@@ -536,6 +574,19 @@ function exportWorkbook() {
 
 function formatHour(hour) {
   return `${String(hour).padStart(2, "0")}:00`;
+}
+
+function populateWorkHourOptions() {
+  for (const input of [workStartInput, workEndInput]) {
+    for (let hour = 0; hour < 24; hour += 1) {
+      const value = String(hour).padStart(2, "0");
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = formatHour(hour);
+      option.selected = value === input.dataset.default;
+      input.append(option);
+    }
+  }
 }
 
 function personCell(identifier) {
@@ -634,6 +685,7 @@ function setActiveView(view) {
 }
 
 dateInput.value = localDateValue();
+populateWorkHourOptions();
 document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => setActiveView(button.dataset.view));
 });
@@ -641,6 +693,8 @@ document.querySelectorAll("[data-go-view]").forEach((button) => {
   button.addEventListener("click", () => setActiveView(button.dataset.goView));
 });
 dateInput.addEventListener("change", renderActiveView);
+workStartInput.addEventListener("change", renderActiveView);
+workEndInput.addEventListener("change", renderActiveView);
 document.querySelector("#sorterSearch").addEventListener("input", renderSorting);
 document.querySelector("#stagerSearch").addEventListener("input", renderStaging);
 document.querySelector("#refreshButton").addEventListener("click", loadData);

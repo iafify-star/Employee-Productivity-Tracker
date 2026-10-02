@@ -82,6 +82,18 @@
             <span class="date-icon" aria-hidden="true">▦</span>
             <span class="date-copy"><small data-i18n="reportDate">تاريخ التقرير</small><input id="reportDate" type="date" aria-label="تاريخ التقرير"></span>
           </label>
+          <fieldset class="time-range-control">
+            <legend data-i18n="workHours">وقت العمل</legend>
+            <label class="time-control">
+              <span data-i18n="fromTime">من الساعة</span>
+              <select id="workStartTime" data-default="00"></select>
+            </label>
+            <label class="time-control">
+              <span data-i18n="toTime">إلى الساعة</span>
+              <select id="workEndTime" data-default="23"></select>
+            </label>
+            <small class="time-range-hint" data-i18n="workHoursHint">الساعتان مشمولتان، والنهاية الأسبق تعبر لليوم التالي</small>
+          </fieldset>
         </section>
 
         <div class="notice error-notice" id="errorNotice" role="alert" hidden></div>
@@ -99,9 +111,9 @@
               <div class="kpi-foot" data-i18n="overviewSortingCaption">من السورتينج في التاريخ المحدد</div>
             </article>
             <article class="kpi-card overview-kpi">
-              <div class="kpi-top"><span data-i18n="containerTotal">إجمالي الحاويات</span><span class="kpi-icon amber" aria-hidden="true">▤</span></div>
+              <div class="kpi-top"><span data-i18n="containerTotal">إجمالي التوت</span><span class="kpi-icon amber" aria-hidden="true">▤</span></div>
               <div class="kpi-value" id="overviewStagingTotal">—</div>
-              <div class="kpi-foot" data-i18n="overviewStagingCaption">حاويات staging فريدة</div>
+              <div class="kpi-foot" data-i18n="overviewStagingCaption">عدد التوت الفريدة في staging</div>
             </article>
             <article class="kpi-card overview-kpi">
               <div class="kpi-top"><span data-i18n="activeEmployees">موظفون نشطون</span><span class="kpi-icon blue" aria-hidden="true">♙</span></div>
@@ -147,7 +159,7 @@
               <div class="panel-heading">
                 <div>
                   <h2 data-i18n="topStagers">أعلى موظفي staging إنتاجًا</h2>
-                  <p data-i18n="topStagersCaption">ترتيب حسب عدد الحاويات الفريدة.</p>
+                  <p data-i18n="topStagersCaption">ترتيب حسب عدد التوت الفريدة.</p>
                 </div>
                 <button class="panel-link" type="button" data-go-view="staging" data-i18n="viewDetails">عرض التفاصيل</button>
               </div>
@@ -206,27 +218,27 @@
           <h2 class="visually-hidden" id="stagingHeading" data-i18n="stagingProductivity">إنتاجية الـ staging</h2>
           <div class="kpi-grid kpi-grid-stage">
             <article class="kpi-card">
-              <div class="kpi-top"><span data-i18n="containerTotal">إجمالي الحاويات</span><span class="kpi-icon green" aria-hidden="true">▤</span></div>
+              <div class="kpi-top"><span data-i18n="containerTotal">إجمالي التوت</span><span class="kpi-icon green" aria-hidden="true">▤</span></div>
               <div class="kpi-value" id="stagingTotal">—</div>
-              <div class="kpi-foot" data-i18n="uniqueContainerTotal">عدد الـ container_barcode الفريدة</div>
+              <div class="kpi-foot" data-i18n="uniqueContainerTotal">عدد التوت الفريدة</div>
             </article>
             <article class="kpi-card">
               <div class="kpi-top"><span data-i18n="stagerCount">عدد موظفي staging</span><span class="kpi-icon blue" aria-hidden="true">♙</span></div>
               <div class="kpi-value" id="stagerCount">—</div>
-              <div class="kpi-foot" data-i18n="stagerCountCaption">موظفين لديهم حاويات مسجلة</div>
+              <div class="kpi-foot" data-i18n="stagerCountCaption">موظفين لديهم توت مسجل</div>
             </article>
             <article class="kpi-card">
               <div class="kpi-top"><span data-i18n="topProduction">أعلى إنتاج</span><span class="kpi-icon amber" aria-hidden="true">↗</span></div>
               <div class="kpi-value kpi-value-stager" id="topStager">—</div>
-              <div class="kpi-foot" id="topStagerFoot">أكثر موظف سجّل حاويات</div>
+              <div class="kpi-foot" id="topStagerFoot">أكثر موظف سجّل توت</div>
             </article>
           </div>
 
           <article class="panel">
             <div class="panel-heading">
               <div>
-                <h2 data-i18n="containersPerEmployee">الحاويات لكل موظف</h2>
-                <p data-i18n="containersPerEmployeeCaption">عدد الـ container_barcode الفريدة لكل staged_by في التاريخ المحدد.</p>
+                <h2 data-i18n="containersPerEmployee">التوت لكل موظف</h2>
+                <p data-i18n="containersPerEmployeeCaption">عدد التوت الفريدة لكل موظف staging في التاريخ المحدد.</p>
               </div>
               <label class="search-control">
                 <span aria-hidden="true">⌕</span>
@@ -236,7 +248,7 @@
             <div class="table-scroll">
               <table class="data-table staging-table">
                 <thead>
-                  <tr><th data-i18n="employee">الموظف</th><th data-i18n="containerCount">عدد الحاويات</th><th data-i18n="shareOfTotal">نسبة من الإجمالي</th></tr>
+                  <tr><th data-i18n="employee">الموظف</th><th data-i18n="containerCount">عدد التوت</th><th data-i18n="shareOfTotal">نسبة من الإجمالي</th></tr>
                 </thead>
                 <tbody id="stagingBody"></tbody>
               </table>
