@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7f4">
+    <title>مؤشر الإنتاجية | العمليات</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#" aria-label="noon MINUTES productivity tracker">
+          <img class="brand-logo" src="noon-minutes-logo.png" alt="noon MINUTES">
+          <span class="brand-copy">
+            <strong data-i18n="brandTitle">مؤشر الإنتاجية</strong>
+            <small data-i18n="brandSubtitle">لوحة متابعة العمليات</small>
+          </span>
+        </a>
+
+        <div class="nav-label" data-i18n="sections">الأقسام</div>
+        <nav class="section-nav" aria-label="أقسام الإنتاجية" data-i18n-aria="sections">
+          <button class="nav-item is-active" type="button" data-view="sorting" aria-current="page">
+            <span class="nav-icon" aria-hidden="true">↗</span>
+            <span data-i18n="sorting">السورتينج</span>
+            <span class="nav-arrow" aria-hidden="true">‹</span>
+          </button>
+          <button class="nav-item" type="button" data-view="staging">
+            <span class="nav-icon staging-icon" aria-hidden="true">▤</span>
+            <span data-i18n="staging">الـ staging</span>
+            <span class="nav-arrow" aria-hidden="true">‹</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span data-i18n="connected">متصل ببيانات الشيت</span>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="breadcrumb"><span data-i18n="operations">العمليات</span><span class="crumb-divider">/</span><strong id="breadcrumbCurrent">السورتينج</strong></div>
+          <div class="topbar-actions">
+            <span class="updated-label" id="updatedAt">في انتظار تحميل البيانات</span>
+            <div class="language-switch" role="group" aria-label="اختيار اللغة" data-i18n-aria="languageSelect">
+              <button class="language-button" id="arabicButton" type="button" lang="ar">العربية</button>
+              <button class="language-button" id="englishButton" type="button" lang="en">English</button>
+            </div>
+            <button class="theme-button" id="themeButton" type="button" aria-pressed="false">
+              <span id="themeIcon" aria-hidden="true">☾</span>
+              <span id="themeLabel">الوضع الليلي</span>
+            </button>
+            <button class="export-button" id="exportButton" type="button" disabled>
+              <span aria-hidden="true">⇩</span>
+              <span data-i18n="downloadExcel">تحميل Excel</span>
+            </button>
+            <button class="refresh-button" id="refreshButton" type="button">
+              <span aria-hidden="true">⟳</span>
+              <span data-i18n="refresh">تحديث البيانات</span>
+            </button>
+          </div>
+        </header>
+
+        <section class="page-heading">
+          <div>
+            <div class="eyebrow"><span class="eyebrow-line"></span> <span data-i18n="teamPerformance">متابعة أداء الفريق</span></div>
+            <h1 id="pageTitle">أداء السورتينج</h1>
+            <p id="pageSubtitle">إنتاج كل sorter موزّع على ساعات العمل.</p>
+          </div>
+          <label class="date-control">
+            <span class="date-icon" aria-hidden="true">▦</span>
+            <span class="date-copy"><small data-i18n="reportDate">تاريخ التقرير</small><input id="reportDate" type="date" aria-label="تاريخ التقرير"></span>
+          </label>
+        </section>
+
+        <div class="notice error-notice" id="errorNotice" role="alert" hidden></div>
+        <div class="notice loading-notice" id="loadingNotice" role="status" hidden>
+          <span class="spinner" aria-hidden="true"></span>
+          <span data-i18n="loading">بنحمّل بيانات الشيت...</span>
+        </div>
+
+        <section class="dashboard-view is-visible" id="sortingView" aria-labelledby="sortingHeading">
+          <h2 class="visually-hidden" id="sortingHeading" data-i18n="sortingProductivity">إنتاجية السورتينج</h2>
+          <div class="kpi-grid">
+            <article class="kpi-card">
+              <div class="kpi-top"><span data-i18n="sortedTotal">إجمالي القطع المسورتة</span><span class="kpi-icon green" aria-hidden="true">▥</span></div>
+              <div class="kpi-value" id="sortingTotal">—</div>
+              <div class="kpi-foot" data-i18n="sortedQtyCaption">sorted_qty خلال اليوم المحدد</div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-top"><span data-i18n="sorterCount">عدد الـ sorters</span><span class="kpi-icon blue" aria-hidden="true">♙</span></div>
+              <div class="kpi-value" id="sorterCount">—</div>
+              <div class="kpi-foot" data-i18n="sorterCountCaption">موظفين لديهم إنتاج مسجل</div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-top"><span data-i18n="peakHour">أعلى ساعة إنتاجًا</span><span class="kpi-icon amber" aria-hidden="true">◷</span></div>
+              <div class="kpi-value kpi-value-hour" id="peakHour">—</div>
+              <div class="kpi-foot" id="peakHourFoot">إجمالي القطع في الساعة</div>
+            </article>
+          </div>
+
+          <article class="panel sorting-panel">
+            <div class="panel-heading">
+              <div>
+                <h2 data-i18n="sortingByHour">إنتاج كل sorter بالساعة</h2>
+                <p data-i18n="sortingByHourCaption">الكمية محسوبة حسب ساعة إكمال مهمة السورتينج.</p>
+              </div>
+              <label class="search-control">
+                <span aria-hidden="true">⌕</span>
+                <input id="sorterSearch" type="search" placeholder="ابحث عن sorter" data-i18n-placeholder="searchSorter" autocomplete="off">
+              </label>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table sorting-table">
+                <thead id="sortingHead"></thead>
+                <tbody id="sortingBody"></tbody>
+              </table>
+              <div class="empty-state" id="sortingEmpty" hidden>
+                <span aria-hidden="true">◌</span>
+                <strong data-i18n="noSortingData">مفيش بيانات سورتينج للتاريخ ده</strong>
+                <small data-i18n="chooseAnotherDate">اختار تاريخ تاني أو حدّث البيانات.</small>
+              </div>
+            </div>
+            <div class="table-footer" id="sortingFooter"></div>
+          </article>
+        </section>
+
+        <section class="dashboard-view" id="stagingView" aria-labelledby="stagingHeading" hidden>
+          <h2 class="visually-hidden" id="stagingHeading" data-i18n="stagingProductivity">إنتاجية الـ staging</h2>
+          <div class="kpi-grid kpi-grid-stage">
+            <article class="kpi-card">
+              <div class="kpi-top"><span data-i18n="containerTotal">إجمالي الحاويات</span><span class="kpi-icon green" aria-hidden="true">▤</span></div>
+              <div class="kpi-value" id="stagingTotal">—</div>
+              <div class="kpi-foot" data-i18n="uniqueContainerTotal">عدد الـ container_barcode الفريدة</div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-top"><span data-i18n="stagerCount">عدد موظفي staging</span><span class="kpi-icon blue" aria-hidden="true">♙</span></div>
+              <div class="kpi-value" id="stagerCount">—</div>
+              <div class="kpi-foot" data-i18n="stagerCountCaption">موظفين لديهم حاويات مسجلة</div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-top"><span data-i18n="topProduction">أعلى إنتاج</span><span class="kpi-icon amber" aria-hidden="true">↗</span></div>
+              <div class="kpi-value kpi-value-stager" id="topStager">—</div>
+              <div class="kpi-foot" id="topStagerFoot">أكثر موظف سجّل حاويات</div>
+            </article>
+          </div>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2 data-i18n="containersPerEmployee">الحاويات لكل موظف</h2>
+                <p data-i18n="containersPerEmployeeCaption">عدد الـ container_barcode الفريدة لكل staged_by في التاريخ المحدد.</p>
+              </div>
+              <label class="search-control">
+                <span aria-hidden="true">⌕</span>
+                <input id="stagerSearch" type="search" placeholder="ابحث عن موظف" data-i18n-placeholder="searchEmployee" autocomplete="off">
+              </label>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table staging-table">
+                <thead>
+                  <tr><th data-i18n="employee">الموظف</th><th data-i18n="containerCount">عدد الحاويات</th><th data-i18n="shareOfTotal">نسبة من الإجمالي</th></tr>
+                </thead>
+                <tbody id="stagingBody"></tbody>
+              </table>
+              <div class="empty-state" id="stagingEmpty" hidden>
+                <span aria-hidden="true">◌</span>
+                <strong data-i18n="noStagingData">مفيش بيانات staging للتاريخ ده</strong>
+                <small data-i18n="chooseAnotherDate">اختار تاريخ تاني أو حدّث البيانات.</small>
+              </div>
+            </div>
+            <div class="table-footer" id="stagingFooter"></div>
+          </article>
+        </section>
+        <footer class="page-footer"><span data-i18n="dataSource">مصدر البيانات: Google Sheets</span> <span aria-hidden="true">·</span> <span data-i18n="calculatedFromSheet">يتم احتساب الإنتاج من سجلات الشيت</span> <span aria-hidden="true">·</span> <span>Designed by Ibrahim Afifi</span></footer>
+      </main>
+    </div>
+  </body>
+</html>
