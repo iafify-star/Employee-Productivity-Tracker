@@ -36,6 +36,11 @@
             <span data-i18n="sorting">السورتينج</span>
             <span class="nav-arrow" aria-hidden="true">‹</span>
           </button>
+          <button class="nav-item" type="button" data-view="xdock">
+            <span class="nav-icon" aria-hidden="true">⇄</span>
+            <span data-i18n="xdock">Sorting XDOCK</span>
+            <span class="nav-arrow" aria-hidden="true">‹</span>
+          </button>
           <button class="nav-item" type="button" data-view="staging">
             <span class="nav-icon staging-icon" aria-hidden="true">▤</span>
             <span data-i18n="staging">الـ staging</span>
@@ -112,6 +117,11 @@
               <div class="kpi-foot" data-i18n="overviewSortingCaption">من السورتينج في التاريخ المحدد</div>
             </article>
             <article class="kpi-card overview-kpi">
+              <div class="kpi-top"><span data-i18n="xdockTotal">إجمالي put_away_lines</span><span class="kpi-icon blue" aria-hidden="true">⇄</span></div>
+              <div class="kpi-value" id="overviewXdockTotal">—</div>
+              <div class="kpi-foot" data-i18n="overviewXdockCaption">put_away_lines في التاريخ المحدد</div>
+            </article>
+            <article class="kpi-card overview-kpi">
               <div class="kpi-top"><span data-i18n="containerTotal">إجمالي التوت</span><span class="kpi-icon amber" aria-hidden="true">▤</span></div>
               <div class="kpi-value" id="overviewStagingTotal">—</div>
               <div class="kpi-foot" data-i18n="overviewStagingCaption">عدد التوت الفريدة في staging</div>
@@ -166,6 +176,17 @@
               </div>
               <div class="overview-ranking-list" id="overviewStagerRanking"></div>
             </article>
+
+            <article class="panel overview-ranking-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2 data-i18n="topXdock">أعلى XDOCK إنتاجًا</h2>
+                  <p data-i18n="topXdockCaption">ترتيب حسب إجمالي put_away_lines.</p>
+                </div>
+                <button class="panel-link" type="button" data-go-view="xdock" data-i18n="viewDetails">عرض التفاصيل</button>
+              </div>
+              <div class="overview-ranking-list" id="overviewXdockRanking"></div>
+            </article>
           </div>
         </section>
 
@@ -212,6 +233,54 @@
               </div>
             </div>
             <div class="table-footer" id="sortingFooter"></div>
+          </article>
+        </section>
+
+        <section class="dashboard-view" id="xdockView" aria-labelledby="xdockHeading" hidden>
+          <h2 class="visually-hidden" id="xdockHeading" data-i18n="xdockTitle">أداء Sorting XDOCK</h2>
+          <div class="kpi-grid">
+            <article class="kpi-card">
+              <div class="kpi-top"><span data-i18n="xdockTotal">إجمالي put_away_lines</span><span class="kpi-icon green" aria-hidden="true">⇄</span></div>
+              <div class="kpi-value" id="xdockTotal">—</div>
+              <div class="kpi-foot">put_away_lines</div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-top"><span data-i18n="xdockCount">عدد مستخدمي XDOCK</span><span class="kpi-icon blue" aria-hidden="true">♙</span></div>
+              <div class="kpi-value" id="xdockUserCount">—</div>
+              <div class="kpi-foot" data-i18n="xdockCountCaption">مستخدمون لديهم put away مسجل</div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-top"><span data-i18n="xdockJobs">عدد المهام</span><span class="kpi-icon amber" aria-hidden="true">▤</span></div>
+              <div class="kpi-value" id="xdockJobCount">—</div>
+              <div class="kpi-foot" data-i18n="xdockJobs">عدد المهام</div>
+            </article>
+          </div>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2 data-i18n="xdockByEmployee">إنتاج XDOCK لكل موظف</h2>
+                <p data-i18n="xdockByEmployeeCaption">مجموع put_away_lines حسب username في وقت العمل المحدد.</p>
+              </div>
+              <label class="search-control">
+                <span aria-hidden="true">⌕</span>
+                <input id="xdockSearch" type="search" placeholder="ابحث عن موظف" data-i18n-placeholder="searchEmployee" autocomplete="off">
+              </label>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table xdock-table">
+                <thead>
+                  <tr><th data-i18n="employee">الموظف</th><th class="rank-cell" data-i18n="rank">#</th><th data-i18n="xdockJobs">عدد المهام</th><th data-i18n="totalPutAwayLinesLabel">put_away_lines</th></tr>
+                </thead>
+                <tbody id="xdockBody"></tbody>
+              </table>
+              <div class="empty-state" id="xdockEmpty" hidden>
+                <span aria-hidden="true">◌</span>
+                <strong data-i18n="noXdockData">مفيش بيانات XDOCK للتاريخ ده</strong>
+                <small data-i18n="chooseAnotherDate">اختار تاريخ تاني أو حدّث البيانات.</small>
+              </div>
+            </div>
+            <div class="table-footer" id="xdockFooter"></div>
           </article>
         </section>
 

@@ -5,29 +5,33 @@ const numberFormat = new Intl.NumberFormat("en-US");
 const dateInput = document.querySelector("#reportDate");
 const workStartInput = document.querySelector("#workStartTime");
 const workEndInput = document.querySelector("#workEndTime");
-const state = { sorting: [], staging: [], attendance: new Map(), activeView: "overview", loaded: false, error: null };
+const state = { sorting: [], xdock: [], staging: [], attendance: new Map(), activeView: "overview", loaded: false, error: null };
 const translations = {
   ar: {
     brandTitle: "مؤشر الإنتاجية", brandSubtitle: "لوحة متابعة العمليات", sections: "الأقسام",
     languageSelect: "اختيار اللغة",
-    sorting: "السورتينج", staging: "الـ staging", connected: "متصل ببيانات الشيت",
+    sorting: "Sorting batch", xdock: "Sorting XDOCK", staging: "الـ staging", connected: "متصل ببيانات الشيت",
     operations: "العمليات", teamPerformance: "متابعة أداء الفريق",
     overview: "نظرة عامة", overviewTitle: "لوحة الإنتاجية",
-    overviewSubtitle: "ملخص إنتاج السورتينج والـ staging في التاريخ المحدد.",
+    overviewSubtitle: "ملخص إنتاج الأقسام في التاريخ المحدد.",
     overviewSortingCaption: "من السورتينج في التاريخ المحدد",
+    overviewXdockCaption: "put_away_lines في التاريخ المحدد",
     overviewStagingCaption: "عدد التوت الفريدة في staging",
     activeEmployees: "موظفون نشطون",
-    overviewEmployeeCaption: "في السورتينج والـ staging",
+    overviewEmployeeCaption: "في Sorting batch وXDOCK والـ staging",
     overviewHourlyTitle: "حركة السورتينج بالساعة",
     overviewHourlyCaption: "إجمالي القطع المكتملة خلال كل ساعة.",
     topSorters: "أعلى sorters إنتاجًا",
     topSortersCaption: "ترتيب حسب إجمالي القطع المسورتة.",
     topStagers: "أعلى موظفي staging إنتاجًا",
     topStagersCaption: "ترتيب حسب عدد التوت الفريدة.",
+    topXdock: "أعلى XDOCK إنتاجًا",
+    topXdockCaption: "ترتيب حسب إجمالي put_away_lines.",
     viewDetails: "عرض التفاصيل",
     unitsPieces: "قطعة", unitsContainers: "توت",
-    sortingTitle: "أداء السورتينج", stagingTitle: "أداء الـ staging",
+    sortingTitle: "أداء Sorting batch", xdockTitle: "أداء Sorting XDOCK", stagingTitle: "أداء الـ staging",
     sortingSubtitle: "إنتاج كل sorter موزّع على ساعات العمل.",
+    xdockSubtitle: "عدد put_away_lines لكل مستخدم في التاريخ المحدد.",
     stagingSubtitle: "عدد التوت المسجلة لكل موظف في الـ staging.",
     reportDate: "تاريخ التقرير", workHours: "وقت العمل", fromTime: "من الساعة", toTime: "إلى الساعة",
     workHoursHint: "الساعتان مشمولتان، والنهاية الأسبق تعبر لليوم التالي",
@@ -42,6 +46,11 @@ const translations = {
     chooseAnotherDate: "اختار تاريخ تاني أو حدّث البيانات.",
     sortingHeader: "الـ sorter", rank: "#", total: "إجمالي sorted_qty", skippedQty: "إجمالي skipped_qty",
     sortingFooterCount: "{count} sorter", totalPieces: "إجمالي sorted_qty: {count} قطعة", totalSkipped: "إجمالي skipped_qty: {count}",
+    xdockTotal: "إجمالي put_away_lines", xdockCount: "عدد مستخدمي XDOCK",
+    xdockCountCaption: "مستخدمون لديهم put away مسجل", xdockJobs: "عدد المهام",
+    xdockByEmployee: "إنتاج XDOCK لكل موظف", xdockByEmployeeCaption: "مجموع put_away_lines حسب username في وقت العمل المحدد.",
+    xdockFooterCount: "{count} مستخدم", totalPutAwayLines: "إجمالي put_away_lines: {count}",
+    noXdockData: "مفيش بيانات XDOCK للتاريخ ده",
     stagingProductivity: "إنتاجية الـ staging", containerTotal: "إجمالي التوت",
     uniqueContainerTotal: "عدد التوت الفريدة",
     stagerCount: "عدد موظفي staging", stagerCountCaption: "موظفين لديهم توت مسجل",
@@ -52,41 +61,48 @@ const translations = {
     shareOfTotal: "نسبة من الإجمالي", noStagingData: "مفيش بيانات staging للتاريخ ده",
     stagingFooterCount: "{count} موظف", totalContainers: "إجمالي التوت: {count}",
     dataSource: "مصدر البيانات: Google Sheets", calculatedFromSheet: "يتم احتساب الإنتاج من سجلات الشيت",
-    downloadExcel: "تحميل Excel", refresh: "تحديث البيانات",
+    downloadExcel: "تقرير الأقسام (Excel)", refresh: "تحديث البيانات",
     dayShift: "الوضع النهاري", nightShift: "الوضع الليلي",
     loadError: "ما قدرناش نحمّل البيانات: {details} تأكد إن الشيت متاح للعرض عبر الرابط، وبعدها جرّب التحديث.",
     attendanceLoadError: "بيانات الإنتاج اتحمّلت، لكن أسماء الموظفين ما اتحمّلتش: {details}. هنعرض أسماء المستخدمين بدلًا منها؛ راجع صلاحية شيت الحضور.",
     exportError: "ما قدرناش ننزّل ملف Excel: {details}",
     noDataLoaded: "لسه بيانات الشيت ما اتحمّلتش.",
     noExcelLibrary: "مكتبة إنشاء ملف Excel مش متاحة. اتأكد من اتصال الإنترنت وحاول تاني.",
-    sortingSheetName: "السورتينج", stagingSheetName: "Staging", summarySheetName: "ملخص",
-    reportTitle: "تقرير إنتاجية العمليات", department: "القسم",
-    employeeCount: "عدد الموظفين", outputTotal: "إجمالي الإنتاج",
+    reportTitle: "تقرير إنتاج الأقسام اليومي", reportSubtitle: "ملخص النتائج حسب القسم",
+    reportNote: "كل نتيجة معروضة بوحدة قياس القسم، ولا يتم جمع وحدات الأقسام المختلفة.",
+    department: "القسم", outputMetric: "مقياس الإنتاج", outputTotal: "إجمالي اليوم",
+    sortingMetric: "sorted_qty (قطعة)", xdockMetric: "put_away_lines", stagingMetric: "توت فريدة",
+    reportSheetName: "تقرير الأقسام",
     highestSortingHour: "أعلى ساعة سورتينج", employeeName: "اسم الموظف",
     username: "username", totalQuantity: "الإجمالي (قطعة)",
+    totalPutAwayLinesLabel: "put_away_lines",
     uniqueContainers: "عدد التوت الفريدة", percentageTotal: "النسبة من الإجمالي",
   },
   en: {
     brandTitle: "Productivity Tracker", brandSubtitle: "Operations dashboard", sections: "Sections",
     languageSelect: "Select language",
-    sorting: "Sorting", staging: "Staging", connected: "Connected to sheet data",
+    sorting: "Sorting batch", xdock: "Sorting XDOCK", staging: "Staging", connected: "Connected to sheet data",
     operations: "Operations", teamPerformance: "Team performance",
     overview: "Overview", overviewTitle: "Productivity overview",
-    overviewSubtitle: "Sorting and staging output for the selected date.",
+    overviewSubtitle: "Department output for the selected date.",
     overviewSortingCaption: "From sorting on the selected date",
+    overviewXdockCaption: "put_away_lines for the selected date",
     overviewStagingCaption: "Unique staged totes",
     activeEmployees: "Active employees",
-    overviewEmployeeCaption: "Across sorting and staging",
+    overviewEmployeeCaption: "Across Sorting batch, XDOCK, and staging",
     overviewHourlyTitle: "Hourly sorting activity",
     overviewHourlyCaption: "Total items completed in each hour.",
     topSorters: "Top sorters",
     topSortersCaption: "Ranked by total items sorted.",
     topStagers: "Top staging employees",
     topStagersCaption: "Ranked by unique totes staged.",
+    topXdock: "Top XDOCK employees",
+    topXdockCaption: "Ranked by total put_away_lines.",
     viewDetails: "View details",
     unitsPieces: "items", unitsContainers: "totes",
-    sortingTitle: "Sorting performance", stagingTitle: "Staging performance",
+    sortingTitle: "Sorting batch performance", xdockTitle: "Sorting XDOCK performance", stagingTitle: "Staging performance",
     sortingSubtitle: "Each sorter's output, broken down by hour.",
+    xdockSubtitle: "put_away_lines by user for the selected date.",
     stagingSubtitle: "Totes registered by each staging employee.",
     reportDate: "Report date", workHours: "Work hours", fromTime: "From", toTime: "To",
     workHoursHint: "Both hours are included; an earlier end time continues into the next day.",
@@ -101,6 +117,11 @@ const translations = {
     chooseAnotherDate: "Choose another date or refresh the data.",
     sortingHeader: "Sorter", rank: "#", total: "Total sorted_qty", skippedQty: "Total skipped_qty",
     sortingFooterCount: "{count} sorters", totalPieces: "Total sorted_qty: {count} items", totalSkipped: "Total skipped_qty: {count}",
+    xdockTotal: "Total put_away_lines", xdockCount: "XDOCK users",
+    xdockCountCaption: "Users with recorded put away", xdockJobs: "Jobs",
+    xdockByEmployee: "XDOCK output by employee", xdockByEmployeeCaption: "Sum of put_away_lines by username during the selected work hours.",
+    xdockFooterCount: "{count} users", totalPutAwayLines: "Total put_away_lines: {count}",
+    noXdockData: "No XDOCK data for this date",
     stagingProductivity: "Staging productivity", containerTotal: "Total totes",
     uniqueContainerTotal: "Unique tote count",
     stagerCount: "Staging employees", stagerCountCaption: "Employees with recorded totes",
@@ -111,18 +132,21 @@ const translations = {
     shareOfTotal: "Share of total", noStagingData: "No staging data for this date",
     stagingFooterCount: "{count} employees", totalContainers: "Total: {count} unique totes",
     dataSource: "Data source: Google Sheets", calculatedFromSheet: "Output is calculated from sheet records",
-    downloadExcel: "Download Excel", refresh: "Refresh data",
+    downloadExcel: "Department report (Excel)", refresh: "Refresh data",
     dayShift: "Light mode", nightShift: "Dark mode",
     loadError: "Could not load data: {details} Make sure the sheet is accessible to anyone with the link, then refresh.",
     attendanceLoadError: "Production data loaded, but employee names could not be loaded: {details}. Usernames will be shown instead; check access to the attendance sheet.",
     exportError: "Could not download the Excel file: {details}",
     noDataLoaded: "Sheet data has not loaded yet.",
     noExcelLibrary: "The Excel export library is unavailable. Check your internet connection and try again.",
-    sortingSheetName: "Sorting", stagingSheetName: "Staging", summarySheetName: "Summary",
-    reportTitle: "Operations productivity report", department: "Department",
-    employeeCount: "Employees", outputTotal: "Total output",
+    reportTitle: "Daily department output report", reportSubtitle: "Results by department",
+    reportNote: "Each result uses its department's own unit; different department units are not combined.",
+    department: "Department", outputMetric: "Output metric", outputTotal: "Daily total",
+    sortingMetric: "sorted_qty (items)", xdockMetric: "put_away_lines", stagingMetric: "Unique totes",
+    reportSheetName: "Department report",
     highestSortingHour: "Most productive sorting hour", employeeName: "Employee name",
     username: "Username", totalQuantity: "Total (items)",
+    totalPutAwayLinesLabel: "put_away_lines",
     uniqueContainers: "Unique totes", percentageTotal: "Share of total",
   },
 };
@@ -450,6 +474,49 @@ function renderSorting() {
   document.querySelector("#sortingFooter").innerHTML = `<span>${t("sortingFooterCount", { count: visiblePeople.length })}</span><span>${t("totalPieces", { count: numberFormat.format(total) })}</span><span>${t("totalSkipped", { count: numberFormat.format(skippedTotal) })}</span>`;
 }
 
+function getXdockReport() {
+  const rows = selectedRows(state.xdock, "job_started_at")
+    .filter((row) => row.username && Number(row.put_away_lines) > 0);
+  const people = new Map();
+
+  for (const row of rows) {
+    const identifier = String(row.username).trim();
+    if (!identifier) continue;
+    const person = people.get(identifier) || { total: 0, jobs: 0 };
+    person.total += Number(row.put_away_lines) || 0;
+    person.jobs += 1;
+    people.set(identifier, person);
+  }
+
+  const sortedPeople = [...people.entries()].sort((a, b) => b[1].total - a[1].total);
+  const total = sortedPeople.reduce((sum, [, person]) => sum + person.total, 0);
+  return { people: sortedPeople, total };
+}
+
+function renderXdock() {
+  const { people, total } = getXdockReport();
+  document.querySelector("#xdockTotal").textContent = numberFormat.format(total);
+  document.querySelector("#xdockUserCount").textContent = numberFormat.format(people.length);
+  document.querySelector("#xdockJobCount").textContent = numberFormat.format(
+    people.reduce((sum, [, person]) => sum + person.jobs, 0),
+  );
+
+  const query = document.querySelector("#xdockSearch").value.trim();
+  const visiblePeople = people.filter(([identifier]) => employeeMatches(identifier, query));
+  document.querySelector("#xdockBody").innerHTML = visiblePeople.map(([identifier, person], index) => `
+    <tr>
+      <td>${personCell(identifier)}</td>
+      <td class="rank-cell">${index + 1}</td>
+      <td><span class="total-pill">${numberFormat.format(person.jobs)}</span></td>
+      <td><span class="total-pill">${numberFormat.format(person.total)}</span></td>
+    </tr>`).join("");
+
+  const isEmpty = visiblePeople.length === 0;
+  document.querySelector("#xdockEmpty").hidden = !isEmpty;
+  document.querySelector(".xdock-table").hidden = isEmpty;
+  document.querySelector("#xdockFooter").innerHTML = `<span>${t("xdockFooterCount", { count: visiblePeople.length })}</span><span>${t("totalPutAwayLines", { count: numberFormat.format(total) })}</span>`;
+}
+
 function getStagingReport() {
   const rows = currentStagingRows().filter((row) => row.staged_by && row.container_barcode);
   const people = new Map();
@@ -498,9 +565,11 @@ function renderStaging() {
 
 function renderOverview() {
   const sorting = getSortingReport();
+  const xdock = getXdockReport();
   const staging = getStagingReport();
   const employees = new Set([
     ...sorting.people.map(([identifier]) => employeeUsername(identifier).toLowerCase()),
+    ...xdock.people.map(([identifier]) => employeeUsername(identifier).toLowerCase()),
     ...staging.people.map(([identifier]) => employeeUsername(identifier).toLowerCase()),
   ]);
   const hourlyTotals = sorting.hours.map((hour) => ({
@@ -510,6 +579,7 @@ function renderOverview() {
   const maxHourlyTotal = Math.max(0, ...hourlyTotals.map(({ total }) => total));
 
   document.querySelector("#overviewSortedTotal").textContent = numberFormat.format(sorting.total);
+  document.querySelector("#overviewXdockTotal").textContent = numberFormat.format(xdock.total);
   document.querySelector("#overviewStagingTotal").textContent = numberFormat.format(staging.total);
   document.querySelector("#overviewEmployeeCount").textContent = numberFormat.format(employees.size);
   document.querySelector("#overviewPeakHour").textContent = sorting.peak ? formatHour(sorting.peak[0]) : "—";
@@ -546,6 +616,13 @@ function renderOverview() {
     t("unitsContainers"),
     t("noStagingData"),
   );
+  renderOverviewRanking(
+    "#overviewXdockRanking",
+    xdock.people.map(([identifier, person]) => [identifier, person.total]).slice(0, 5),
+    xdock.total,
+    t("totalPutAwayLinesLabel"),
+    t("noXdockData"),
+  );
 }
 
 function renderOverviewRanking(selector, people, total, unitLabel, emptyMessage) {
@@ -575,57 +652,34 @@ function exportWorkbook() {
   if (!window.XLSX) throw new Error(t("noExcelLibrary"));
 
   const sorting = getSortingReport();
+  const xdock = getXdockReport();
   const staging = getStagingReport();
   const workbook = window.XLSX.utils.book_new();
-  const summaryRows = [
+  const reportRows = [
     [t("reportTitle")],
+    [t("reportSubtitle")],
+    [],
     [t("reportDate"), dateInput.value],
     [t("workHours"), `${formatHour(Number(workStartInput.value))} – ${formatHour(Number(workEndInput.value))}`],
     [],
-    [t("department"), t("employeeCount"), t("outputTotal")],
-    [t("sorting"), sorting.people.length, sorting.total],
-    [t("staging"), staging.people.length, staging.total],
-    [t("highestSortingHour"), sorting.peak ? formatHour(sorting.peak[0]) : "—", sorting.peak?.[1] || 0],
-    [t("totalSkipped"), sorting.skippedTotal],
-  ];
-  const sortingRows = [
-    [t("rank"), t("employeeName"), t("username"), ...sorting.hours.map(formatHour), t("totalQuantity"), t("skippedQty")],
-    ...sorting.people.map(([identifier, person], index) => [
-      index + 1,
-      attendanceName(identifier),
-      employeeUsername(identifier),
-      ...sorting.hours.map((hour) => person.hours.get(hour) || 0),
-      person.total,
-      person.skipped,
-    ]),
-  ];
-  const stagingRows = [
-    [t("rank"), t("employeeName"), t("username"), t("uniqueContainers"), t("percentageTotal")],
-    ...staging.people.map(([identifier, count], index) => [
-      index + 1,
-      attendanceName(identifier),
-      employeeUsername(identifier),
-      count,
-      staging.total ? count / staging.total : 0,
-    ]),
+    [t("department"), t("outputMetric"), t("outputTotal")],
+    [t("sorting"), t("sortingMetric"), sorting.total],
+    [t("xdock"), t("xdockMetric"), xdock.total],
+    [t("staging"), t("stagingMetric"), staging.total],
+    [],
+    [t("reportNote")],
   ];
 
-  const summarySheet = window.XLSX.utils.aoa_to_sheet(summaryRows);
-  const sortingSheet = window.XLSX.utils.aoa_to_sheet(sortingRows);
-  const stagingSheet = window.XLSX.utils.aoa_to_sheet(stagingRows);
-  if (stagingRows.length > 1) {
-    for (let row = 1; row < stagingRows.length; row += 1) {
-      const percentageCell = window.XLSX.utils.encode_cell({ r: row, c: 4 });
-      stagingSheet[percentageCell].z = "0%";
-    }
-  }
-  summarySheet["!cols"] = [{ wch: 24 }, { wch: 27 }, { wch: 20 }];
-  sortingSheet["!cols"] = [{ wch: 6 }, { wch: 36 }, { wch: 22 }, ...sorting.hours.map(() => ({ wch: 13 })), { wch: 18 }, { wch: 18 }];
-  stagingSheet["!cols"] = [{ wch: 6 }, { wch: 36 }, { wch: 22 }, { wch: 22 }, { wch: 22 }];
-  window.XLSX.utils.book_append_sheet(workbook, summarySheet, t("summarySheetName"));
-  window.XLSX.utils.book_append_sheet(workbook, sortingSheet, t("sortingSheetName"));
-  window.XLSX.utils.book_append_sheet(workbook, stagingSheet, t("stagingSheetName"));
-  window.XLSX.writeFile(workbook, `employee-productivity-${dateInput.value}.xlsx`);
+  const reportSheet = window.XLSX.utils.aoa_to_sheet(reportRows);
+  reportSheet["!cols"] = [{ wch: 27 }, { wch: 50 }, { wch: 22 }];
+  reportSheet["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
+    { s: { r: 11, c: 0 }, e: { r: 11, c: 2 } },
+  ];
+  reportSheet["!rows"] = [{ hpt: 30 }, { hpt: 22 }];
+  window.XLSX.utils.book_append_sheet(workbook, reportSheet, t("reportSheetName"));
+  window.XLSX.writeFile(workbook, `operations-daily-report-${dateInput.value}.xlsx`);
 }
 
 function formatHour(hour) {
@@ -664,6 +718,7 @@ function escapeHtml(value) {
 function renderActiveView() {
   if (state.activeView === "overview") renderOverview();
   else if (state.activeView === "sorting") renderSorting();
+  else if (state.activeView === "xdock") renderXdock();
   else renderStaging();
 }
 
@@ -685,17 +740,23 @@ async function loadData() {
   exportButton.disabled = true;
 
   try {
-    const [sortingResult, stagingResult, attendanceResult] = await Promise.allSettled([
+    const [sortingResult, xdockResult, stagingResult, attendanceResult] = await Promise.allSettled([
       fetchSheet("Sorting"),
+      fetchSheet("Sorting XDOCK"),
       fetchSheet("staging"),
       fetchAttendance(),
     ]);
     if (sortingResult.status === "rejected") throw sortingResult.reason;
+    if (xdockResult.status === "rejected") throw xdockResult.reason;
     if (stagingResult.status === "rejected") throw stagingResult.reason;
 
     state.sorting = sortingResult.value.map((row) => ({
       ...row,
       job_completed_at__formatted: row.job_completed_at,
+    }));
+    state.xdock = xdockResult.value.map((row) => ({
+      ...row,
+      job_started_at__formatted: row.job_started_at,
     }));
     state.staging = stagingResult.value.map((row) => ({
       ...row,
@@ -729,7 +790,7 @@ async function loadData() {
 
 function setActiveView(view) {
   state.activeView = view;
-  for (const currentView of ["overview", "sorting", "staging"]) {
+  for (const currentView of ["overview", "sorting", "xdock", "staging"]) {
     const section = document.querySelector(`#${currentView}View`);
     const isActive = currentView === view;
     section.hidden = !isActive;
@@ -738,6 +799,7 @@ function setActiveView(view) {
   const viewLabels = {
     overview: ["overviewTitle", "overviewSubtitle"],
     sorting: ["sortingTitle", "sortingSubtitle"],
+    xdock: ["xdockTitle", "xdockSubtitle"],
     staging: ["stagingTitle", "stagingSubtitle"],
   };
   document.querySelector("#pageTitle").textContent = t(viewLabels[view][0]);
@@ -764,6 +826,7 @@ dateInput.addEventListener("change", renderActiveView);
 workStartInput.addEventListener("change", renderActiveView);
 workEndInput.addEventListener("change", renderActiveView);
 document.querySelector("#sorterSearch").addEventListener("input", renderSorting);
+document.querySelector("#xdockSearch").addEventListener("input", renderXdock);
 document.querySelector("#stagerSearch").addEventListener("input", renderStaging);
 document.querySelector("#refreshButton").addEventListener("click", loadData);
 document.querySelector("#exportButton").addEventListener("click", () => {
