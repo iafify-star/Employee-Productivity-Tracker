@@ -61,18 +61,17 @@ const translations = {
     shareOfTotal: "نسبة من الإجمالي", noStagingData: "مفيش بيانات staging للتاريخ ده",
     stagingFooterCount: "{count} موظف", totalContainers: "إجمالي التوت: {count}",
     dataSource: "مصدر البيانات: Google Sheets", calculatedFromSheet: "يتم احتساب الإنتاج من سجلات الشيت",
-    downloadExcel: "تقرير الأقسام (Excel)", refresh: "تحديث البيانات",
+    downloadReport: "تحميل تقرير PDF", refresh: "تحديث البيانات",
     dayShift: "الوضع النهاري", nightShift: "الوضع الليلي",
     loadError: "ما قدرناش نحمّل البيانات: {details} تأكد إن الشيت متاح للعرض عبر الرابط، وبعدها جرّب التحديث.",
     attendanceLoadError: "بيانات الإنتاج اتحمّلت، لكن أسماء الموظفين ما اتحمّلتش: {details}. هنعرض أسماء المستخدمين بدلًا منها؛ راجع صلاحية شيت الحضور.",
-    exportError: "ما قدرناش ننزّل ملف Excel: {details}",
+    exportError: "ما قدرناش ننزّل تقرير PDF: {details}",
     noDataLoaded: "لسه بيانات الشيت ما اتحمّلتش.",
-    noExcelLibrary: "مكتبة إنشاء ملف Excel مش متاحة. اتأكد من اتصال الإنترنت وحاول تاني.",
+    noPdfLibrary: "مكتبات إنشاء PDF مش متاحة. اتأكد من اتصال الإنترنت وحاول تاني.",
     reportTitle: "تقرير إنتاج الأقسام اليومي", reportSubtitle: "ملخص النتائج حسب القسم",
     reportNote: "كل نتيجة معروضة بوحدة قياس القسم، ولا يتم جمع وحدات الأقسام المختلفة.",
     department: "القسم", outputMetric: "مقياس الإنتاج", outputTotal: "إجمالي اليوم",
     sortingMetric: "sorted_qty (قطعة)", xdockMetric: "put_away_lines", stagingMetric: "توت فريدة",
-    reportSheetName: "تقرير الأقسام",
     highestSortingHour: "أعلى ساعة سورتينج", employeeName: "اسم الموظف",
     username: "username", totalQuantity: "الإجمالي (قطعة)",
     totalPutAwayLinesLabel: "put_away_lines",
@@ -132,18 +131,17 @@ const translations = {
     shareOfTotal: "Share of total", noStagingData: "No staging data for this date",
     stagingFooterCount: "{count} employees", totalContainers: "Total: {count} unique totes",
     dataSource: "Data source: Google Sheets", calculatedFromSheet: "Output is calculated from sheet records",
-    downloadExcel: "Department report (Excel)", refresh: "Refresh data",
+    downloadReport: "Download PDF report", refresh: "Refresh data",
     dayShift: "Light mode", nightShift: "Dark mode",
     loadError: "Could not load data: {details} Make sure the sheet is accessible to anyone with the link, then refresh.",
     attendanceLoadError: "Production data loaded, but employee names could not be loaded: {details}. Usernames will be shown instead; check access to the attendance sheet.",
-    exportError: "Could not download the Excel file: {details}",
+    exportError: "Could not download the PDF report: {details}",
     noDataLoaded: "Sheet data has not loaded yet.",
-    noExcelLibrary: "The Excel export library is unavailable. Check your internet connection and try again.",
+    noPdfLibrary: "The PDF libraries are unavailable. Check your internet connection and try again.",
     reportTitle: "Daily department output report", reportSubtitle: "Results by department",
     reportNote: "Each result uses its department's own unit; different department units are not combined.",
     department: "Department", outputMetric: "Output metric", outputTotal: "Daily total",
     sortingMetric: "sorted_qty (items)", xdockMetric: "put_away_lines", stagingMetric: "Unique totes",
-    reportSheetName: "Department report",
     highestSortingHour: "Most productive sorting hour", employeeName: "Employee name",
     username: "Username", totalQuantity: "Total (items)",
     totalPutAwayLinesLabel: "put_away_lines",
@@ -647,39 +645,78 @@ function renderOverviewRanking(selector, people, total, unitLabel, emptyMessage)
   }).join("");
 }
 
-function exportWorkbook() {
+async function exportPdfReport() {
   if (!state.loaded) throw new Error(t("noDataLoaded"));
-  if (!window.XLSX) throw new Error(t("noExcelLibrary"));
+  if (!window.html2canvas || !window.jspdf?.jsPDF) throw new Error(t("noPdfLibrary"));
 
   const sorting = getSortingReport();
   const xdock = getXdockReport();
   const staging = getStagingReport();
-  const workbook = window.XLSX.utils.book_new();
-  const reportRows = [
-    [t("reportTitle")],
-    [t("reportSubtitle")],
-    [],
-    [t("reportDate"), dateInput.value],
-    [t("workHours"), `${formatHour(Number(workStartInput.value))} – ${formatHour(Number(workEndInput.value))}`],
-    [],
-    [t("department"), t("outputMetric"), t("outputTotal")],
+  const date = new Date(`${dateInput.value}T00:00:00`);
+  const formattedDate = Number.isNaN(date.getTime())
+    ? dateInput.value
+    : new Intl.DateTimeFormat(state.language === "ar" ? "ar-EG" : "en-US", {
+      year: "numeric", month: "long", day: "numeric",
+    }).format(date);
+  const departments = [
     [t("sorting"), t("sortingMetric"), sorting.total],
     [t("xdock"), t("xdockMetric"), xdock.total],
     [t("staging"), t("stagingMetric"), staging.total],
-    [],
-    [t("reportNote")],
   ];
+  const report = document.createElement("section");
+  report.className = "department-report-pdf";
+  report.dir = state.language === "ar" ? "rtl" : "ltr";
+  report.innerHTML = `
+    <header class="department-report-header">
+      <span class="department-report-label">${escapeHtml(t("reportSubtitle"))}</span>
+      <h1>${escapeHtml(t("reportTitle"))}</h1>
+      <p>${escapeHtml(t("reportSubtitle"))}</p>
+    </header>
+    <div class="department-report-meta">
+      <div><span>${escapeHtml(t("reportDate"))}</span><strong>${escapeHtml(formattedDate)}</strong></div>
+      <div><span>${escapeHtml(t("workHours"))}</span><strong>${escapeHtml(`${formatHour(Number(workStartInput.value))} – ${formatHour(Number(workEndInput.value))}`)}</strong></div>
+    </div>
+    <table>
+      <thead><tr><th>${escapeHtml(t("department"))}</th><th>${escapeHtml(t("outputMetric"))}</th><th>${escapeHtml(t("outputTotal"))}</th></tr></thead>
+      <tbody>${departments.map(([department, metric, total]) => `
+        <tr><td>${escapeHtml(department)}</td><td>${escapeHtml(metric)}</td><td class="department-report-total">${escapeHtml(numberFormat.format(total))}</td></tr>
+      `).join("")}</tbody>
+    </table>
+    <footer>${escapeHtml(t("reportNote"))}</footer>`;
+  document.body.append(report);
 
-  const reportSheet = window.XLSX.utils.aoa_to_sheet(reportRows);
-  reportSheet["!cols"] = [{ wch: 27 }, { wch: 50 }, { wch: 22 }];
-  reportSheet["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
-    { s: { r: 11, c: 0 }, e: { r: 11, c: 2 } },
-  ];
-  reportSheet["!rows"] = [{ hpt: 30 }, { hpt: 22 }];
-  window.XLSX.utils.book_append_sheet(workbook, reportSheet, t("reportSheetName"));
-  window.XLSX.writeFile(workbook, `operations-daily-report-${dateInput.value}.xlsx`);
+  try {
+    await document.fonts.ready;
+    const canvas = await window.html2canvas(report, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 12;
+    const scale = Math.min(
+      (pageWidth - margin * 2) / canvas.width,
+      (pageHeight - margin * 2) / canvas.height,
+    );
+    const imageWidth = canvas.width * scale;
+    const imageHeight = canvas.height * scale;
+    pdf.setProperties({ title: t("reportTitle"), subject: t("reportSubtitle") });
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", (pageWidth - imageWidth) / 2, margin, imageWidth, imageHeight);
+    const downloadUrl = URL.createObjectURL(pdf.output("blob"));
+    const downloadLink = document.createElement("a");
+    downloadLink.href = downloadUrl;
+    downloadLink.download = `operations-department-report-${dateInput.value}.pdf`;
+    document.body.append(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+    setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+  } finally {
+    report.remove();
+  }
 }
 
 function formatHour(hour) {
@@ -829,11 +866,15 @@ document.querySelector("#sorterSearch").addEventListener("input", renderSorting)
 document.querySelector("#xdockSearch").addEventListener("input", renderXdock);
 document.querySelector("#stagerSearch").addEventListener("input", renderStaging);
 document.querySelector("#refreshButton").addEventListener("click", loadData);
-document.querySelector("#exportButton").addEventListener("click", () => {
+document.querySelector("#exportButton").addEventListener("click", async () => {
+  const button = document.querySelector("#exportButton");
+  button.disabled = true;
   try {
-    exportWorkbook();
+    await exportPdfReport();
   } catch (error) {
     showError("exportError", { details: error.message });
+  } finally {
+    button.disabled = !state.loaded;
   }
 });
 document.querySelector("#arabicButton").addEventListener("click", () => setLanguage("ar"));
