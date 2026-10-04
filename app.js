@@ -1,7 +1,6 @@
 const SHEET_ID = "1ZxfAGaLTjWE5CSpdpi2v8UMN4XS_zi6ov9Yr2X7OiCk";
 const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
-const ATTENDANCE_ID = "1GaMh4GIfanzEvJYpbtvuVLpawERz_-kRzSrWyqovpXs";
-const ATTENDANCE_URL = `https://docs.google.com/spreadsheets/d/${ATTENDANCE_ID}/gviz/tq`;
+const ATTENDANCE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR5NLbH-qg2ipc6Iw8xukZehvMhwR83KRdrEmYxKnomPGp1vGMQX_M8UUMNQs551PA-1EMM0WkVbvju/pub?output=csv&gid=11379924";
 const numberFormat = new Intl.NumberFormat("en-US");
 const dateInput = document.querySelector("#reportDate");
 const workStartInput = document.querySelector("#workStartTime");
@@ -56,6 +55,7 @@ const translations = {
     downloadExcel: "تحميل Excel", refresh: "تحديث البيانات",
     dayShift: "الوضع النهاري", nightShift: "الوضع الليلي",
     loadError: "ما قدرناش نحمّل البيانات: {details} تأكد إن الشيت متاح للعرض عبر الرابط، وبعدها جرّب التحديث.",
+    attendanceLoadError: "بيانات الإنتاج اتحمّلت، لكن أسماء الموظفين ما اتحمّلتش: {details}. هنعرض أسماء المستخدمين بدلًا منها؛ راجع صلاحية شيت الحضور.",
     exportError: "ما قدرناش ننزّل ملف Excel: {details}",
     noDataLoaded: "لسه بيانات الشيت ما اتحمّلتش.",
     noExcelLibrary: "مكتبة إنشاء ملف Excel مش متاحة. اتأكد من اتصال الإنترنت وحاول تاني.",
@@ -114,6 +114,7 @@ const translations = {
     downloadExcel: "Download Excel", refresh: "Refresh data",
     dayShift: "Light mode", nightShift: "Dark mode",
     loadError: "Could not load data: {details} Make sure the sheet is accessible to anyone with the link, then refresh.",
+    attendanceLoadError: "Production data loaded, but employee names could not be loaded: {details}. Usernames will be shown instead; check access to the attendance sheet.",
     exportError: "Could not download the Excel file: {details}",
     noDataLoaded: "Sheet data has not loaded yet.",
     noExcelLibrary: "The Excel export library is unavailable. Check your internet connection and try again.",
@@ -264,6 +265,61 @@ async function fetchSheet(sheetName, range, spreadsheetUrl = SHEET_URL) {
       const cell = row.c?.[index];
       return [label, cell?.v ?? null];
     }),
+  ));
+}
+
+function parseCsv(payload) {
+  const rows = [];
+  let row = [];
+  let value = "";
+  let quoted = false;
+
+  for (let index = 0; index < payload.length; index += 1) {
+    const character = payload[index];
+    if (quoted) {
+      if (character === '"' && payload[index + 1] === '"') {
+        value += '"';
+        index += 1;
+      } else if (character === '"') {
+        quoted = false;
+      } else {
+        value += character;
+      }
+    } else if (character === '"') {
+      quoted = true;
+    } else if (character === ",") {
+      row.push(value);
+      value = "";
+    } else if (character === "\n" || character === "\r") {
+      row.push(value);
+      rows.push(row);
+      row = [];
+      value = "";
+      if (character === "\r" && payload[index + 1] === "\n") index += 1;
+    } else {
+      value += character;
+    }
+  }
+
+  if (quoted) throw new Error("Invalid CSV response from the attendance sheet.");
+  if (value || row.length) {
+    row.push(value);
+    rows.push(row);
+  }
+  return rows;
+}
+
+async function fetchAttendance() {
+  const response = await fetch(ATTENDANCE_URL);
+  if (!response.ok) throw new Error(`Attendance sheet returned HTTP ${response.status}.`);
+
+  const rows = parseCsv((await response.text()).replace(/^\uFEFF/, ""));
+  const headerIndex = rows.findIndex((row) => row.includes("ID") && row.includes("Employee Name"));
+  if (headerIndex < 0) throw new Error("Could not find ID and Employee Name columns in the attendance sheet.");
+
+  const headers = rows[headerIndex];
+  return rows.slice(headerIndex + 1).map((row) => Object.fromEntries(
+    headers.map((header, index) => [header, row[index] || null]),
   ));
 }
 
@@ -629,25 +685,37 @@ async function loadData() {
   exportButton.disabled = true;
 
   try {
-    const [sorting, staging, attendance] = await Promise.all([
+    const [sortingResult, stagingResult, attendanceResult] = await Promise.allSettled([
       fetchSheet("Sorting"),
       fetchSheet("staging"),
-      fetchSheet("CAIID01", "A2:K1000", ATTENDANCE_URL),
+      fetchAttendance(),
     ]);
-    state.attendance = new Map(attendance
-      .filter((row) => row.ID && row["Employee Name"] && row["Employee Name"] !== "#N/A")
-      .map((row) => [String(row.ID).trim().toLowerCase(), String(row["Employee Name"]).trim()]));
-    state.sorting = sorting.map((row) => ({
+    if (sortingResult.status === "rejected") throw sortingResult.reason;
+    if (stagingResult.status === "rejected") throw stagingResult.reason;
+
+    state.sorting = sortingResult.value.map((row) => ({
       ...row,
       job_completed_at__formatted: row.job_completed_at,
     }));
-    state.staging = staging.map((row) => ({
+    state.staging = stagingResult.value.map((row) => ({
       ...row,
       staged_at__formatted: row.staged_at,
     }));
+    state.attendance = new Map();
     state.loaded = true;
     state.lastUpdated = new Date();
     state.error = null;
+
+    if (attendanceResult.status === "fulfilled") {
+      state.attendance = new Map(attendanceResult.value
+        .filter((row) => row.ID && row["Employee Name"] && row["Employee Name"] !== "#N/A")
+        .map((row) => [String(row.ID).trim().toLowerCase(), String(row["Employee Name"]).trim()]));
+    } else {
+      showError("attendanceLoadError", {
+        details: attendanceResult.reason?.message || String(attendanceResult.reason),
+      });
+    }
+
     renderActiveView();
     updateUpdatedLabel();
   } catch (error) {
