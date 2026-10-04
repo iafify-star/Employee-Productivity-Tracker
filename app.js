@@ -43,6 +43,14 @@ const translations = {
     sortingByHour: "إنتاج كل sorter بالساعة",
     sortingByHourCaption: "الكمية محسوبة حسب ساعة إكمال مهمة السورتينج.",
     searchSorter: "ابحث عن sorter", noSortingData: "مفيش بيانات سورتينج للتاريخ ده",
+    downloadSortingExcel: "تنزيل الجدول Excel",
+    noExcelLibrary: "مكتبة إنشاء Excel مش متاحة. اتأكد من اتصال الإنترنت وحاول تاني.",
+    sortingExportError: "ما قدرناش ننزّل جدول السورتينج: {details}",
+    sortingSheetName: "Sorting batch",
+    exportTotal: "الإجمالي",
+    downloadXdockExcel: "تنزيل الجدول Excel",
+    xdockExportError: "ما قدرناش ننزّل جدول XDOCK: {details}",
+    xdockSheetName: "Sorting XDOCK",
     chooseAnotherDate: "اختار تاريخ تاني أو حدّث البيانات.",
     sortingHeader: "الـ sorter", rank: "#", total: "إجمالي sorted_qty", skippedQty: "إجمالي skipped_qty",
     sortingFooterCount: "{count} sorter", totalPieces: "إجمالي sorted_qty: {count} قطعة", totalSkipped: "إجمالي skipped_qty: {count}",
@@ -113,6 +121,14 @@ const translations = {
     sortingByHour: "Hourly output by sorter",
     sortingByHourCaption: "Quantities are grouped by the job completion hour.",
     searchSorter: "Search sorters", noSortingData: "No sorting data for this date",
+    downloadSortingExcel: "Download table (Excel)",
+    noExcelLibrary: "The Excel export library is unavailable. Check your internet connection and try again.",
+    sortingExportError: "Could not download the sorting table: {details}",
+    sortingSheetName: "Sorting batch",
+    exportTotal: "Total",
+    downloadXdockExcel: "Download table (Excel)",
+    xdockExportError: "Could not download the XDOCK table: {details}",
+    xdockSheetName: "Sorting XDOCK",
     chooseAnotherDate: "Choose another date or refresh the data.",
     sortingHeader: "Sorter", rank: "#", total: "Total sorted_qty", skippedQty: "Total skipped_qty",
     sortingFooterCount: "{count} sorters", totalPieces: "Total sorted_qty: {count} items", totalSkipped: "Total skipped_qty: {count}",
@@ -472,6 +488,58 @@ function renderSorting() {
   document.querySelector("#sortingFooter").innerHTML = `<span>${t("sortingFooterCount", { count: visiblePeople.length })}</span><span>${t("totalPieces", { count: numberFormat.format(total) })}</span><span>${t("totalSkipped", { count: numberFormat.format(skippedTotal) })}</span>`;
 }
 
+function exportSortingExcel() {
+  if (!state.loaded) throw new Error(t("noDataLoaded"));
+  if (!window.XLSX) throw new Error(t("noExcelLibrary"));
+
+  const { hours, people } = getSortingReport();
+  const query = document.querySelector("#sorterSearch").value.trim();
+  const visiblePeople = people.filter(([identifier]) => employeeMatches(identifier, query));
+  const rows = [
+    [t("sortingTitle")],
+    [t("reportDate"), dateInput.value],
+    [t("workHours"), `${formatHour(Number(workStartInput.value))} – ${formatHour(Number(workEndInput.value))}`],
+    [],
+    [t("sortingHeader"), t("username"), t("rank"), ...hours.map(formatHour), t("skippedQty"), t("total")],
+    ...visiblePeople.map(([identifier, person], index) => [
+      attendanceName(identifier),
+      employeeUsername(identifier),
+      index + 1,
+      ...hours.map((hour) => person.hours.get(hour) || 0),
+      person.skipped,
+      person.total,
+    ]),
+    [
+      t("exportTotal"),
+      "",
+      "",
+      ...hours.map((hour) => visiblePeople.reduce((sum, [, person]) => sum + (person.hours.get(hour) || 0), 0)),
+      visiblePeople.reduce((sum, [, person]) => sum + person.skipped, 0),
+      visiblePeople.reduce((sum, [, person]) => sum + person.total, 0),
+    ],
+  ];
+  const worksheet = window.XLSX.utils.aoa_to_sheet(rows);
+  worksheet["!cols"] = [
+    { wch: 36 },
+    { wch: 25 },
+    { wch: 8 },
+    ...hours.map(() => ({ wch: 13 })),
+    { wch: 20 },
+    { wch: 20 },
+  ];
+  worksheet["!autofilter"] = {
+    ref: window.XLSX.utils.encode_range({
+      s: { r: 4, c: 0 },
+      e: { r: Math.max(4, rows.length - 2), c: rows[4].length - 1 },
+    }),
+  };
+  worksheet["!freeze"] = { xSplit: 0, ySplit: 5, topLeftCell: "A6", activePane: "bottomLeft", state: "frozen" };
+  const workbook = window.XLSX.utils.book_new();
+  workbook.Props = { Title: t("sortingTitle"), Subject: dateInput.value };
+  window.XLSX.utils.book_append_sheet(workbook, worksheet, t("sortingSheetName"));
+  window.XLSX.writeFile(workbook, `sorting-output-${dateInput.value}.xlsx`);
+}
+
 function getXdockReport() {
   const rows = selectedRows(state.xdock, "job_started_at")
     .filter((row) => row.username && Number(row.put_away_lines) > 0);
@@ -489,6 +557,49 @@ function getXdockReport() {
   const sortedPeople = [...people.entries()].sort((a, b) => b[1].total - a[1].total);
   const total = sortedPeople.reduce((sum, [, person]) => sum + person.total, 0);
   return { people: sortedPeople, total };
+}
+
+function exportXdockExcel() {
+  if (!state.loaded) throw new Error(t("noDataLoaded"));
+  if (!window.XLSX) throw new Error(t("noExcelLibrary"));
+
+  const { people } = getXdockReport();
+  const query = document.querySelector("#xdockSearch").value.trim();
+  const visiblePeople = people.filter(([identifier]) => employeeMatches(identifier, query));
+  const rows = [
+    [t("xdockTitle")],
+    [t("reportDate"), dateInput.value],
+    [t("workHours"), `${formatHour(Number(workStartInput.value))} – ${formatHour(Number(workEndInput.value))}`],
+    [],
+    [t("employee"), t("username"), t("rank"), t("xdockJobs"), t("totalPutAwayLinesLabel")],
+    ...visiblePeople.map(([identifier, person], index) => [
+      attendanceName(identifier),
+      employeeUsername(identifier),
+      index + 1,
+      person.jobs,
+      person.total,
+    ]),
+    [
+      t("exportTotal"),
+      "",
+      "",
+      visiblePeople.reduce((sum, [, person]) => sum + person.jobs, 0),
+      visiblePeople.reduce((sum, [, person]) => sum + person.total, 0),
+    ],
+  ];
+  const worksheet = window.XLSX.utils.aoa_to_sheet(rows);
+  worksheet["!cols"] = [{ wch: 38 }, { wch: 26 }, { wch: 8 }, { wch: 16 }, { wch: 24 }];
+  worksheet["!autofilter"] = {
+    ref: window.XLSX.utils.encode_range({
+      s: { r: 4, c: 0 },
+      e: { r: Math.max(4, rows.length - 2), c: rows[4].length - 1 },
+    }),
+  };
+  worksheet["!freeze"] = { xSplit: 0, ySplit: 5, topLeftCell: "A6", activePane: "bottomLeft", state: "frozen" };
+  const workbook = window.XLSX.utils.book_new();
+  workbook.Props = { Title: t("xdockTitle"), Subject: dateInput.value };
+  window.XLSX.utils.book_append_sheet(workbook, worksheet, t("xdockSheetName"));
+  window.XLSX.writeFile(workbook, `sorting-xdock-output-${dateInput.value}.xlsx`);
 }
 
 function renderXdock() {
@@ -771,10 +882,14 @@ async function loadData() {
   const error = document.querySelector("#errorNotice");
   const refresh = document.querySelector("#refreshButton");
   const exportButton = document.querySelector("#exportButton");
+  const sortingExportButton = document.querySelector("#sortingExportButton");
+  const xdockExportButton = document.querySelector("#xdockExportButton");
   loading.hidden = false;
   error.hidden = true;
   refresh.disabled = true;
   exportButton.disabled = true;
+  sortingExportButton.disabled = true;
+  xdockExportButton.disabled = true;
 
   try {
     const [sortingResult, xdockResult, stagingResult, attendanceResult] = await Promise.allSettled([
@@ -822,6 +937,8 @@ async function loadData() {
     loading.hidden = true;
     refresh.disabled = false;
     exportButton.disabled = !state.loaded;
+    sortingExportButton.disabled = !state.loaded;
+    xdockExportButton.disabled = !state.loaded;
   }
 }
 
@@ -863,6 +980,20 @@ dateInput.addEventListener("change", renderActiveView);
 workStartInput.addEventListener("change", renderActiveView);
 workEndInput.addEventListener("change", renderActiveView);
 document.querySelector("#sorterSearch").addEventListener("input", renderSorting);
+document.querySelector("#sortingExportButton").addEventListener("click", () => {
+  try {
+    exportSortingExcel();
+  } catch (error) {
+    showError("sortingExportError", { details: error.message });
+  }
+});
+document.querySelector("#xdockExportButton").addEventListener("click", () => {
+  try {
+    exportXdockExcel();
+  } catch (error) {
+    showError("xdockExportError", { details: error.message });
+  }
+});
 document.querySelector("#xdockSearch").addEventListener("input", renderXdock);
 document.querySelector("#stagerSearch").addEventListener("input", renderStaging);
 document.querySelector("#refreshButton").addEventListener("click", loadData);

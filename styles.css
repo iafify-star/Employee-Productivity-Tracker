@@ -102,6 +102,11 @@ h1 { margin: 7px 0 3px; font-size: 25px; font-weight: 700; letter-spacing: -.4px
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 17px 19px 15px; }
 .panel-heading h2 { margin: 0 0 3px; font-size: 14px; font-weight: 700; }
 .panel-heading p { margin: 0; color: #939d95; font-size: 10px; }
+.sorting-table-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
+.table-export-button { display: inline-flex; align-items: center; gap: 5px; padding: 7px 9px; border: 1px solid #e9db48; border-radius: 7px; color: #554d00; background: #fff9cc; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.table-export-button:hover { border-color: #d7c400; background: #fff5a8; }
+.table-export-button:disabled { cursor: not-allowed; opacity: .55; }
+.table-export-button > span[aria-hidden="true"] { font-family: Arial, sans-serif; font-size: 14px; line-height: 12px; }
 .overview-grid { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); gap: 15px; align-items: stretch; }
 .overview-grid .panel { margin-bottom: 0; }
 .overview-chart-panel { grid-row: span 3; }
@@ -282,6 +287,8 @@ html[data-theme="dark"] .language-button { color: #adbbb1; }
 html[data-theme="dark"] .language-button.is-selected { color: #f3e76c; background: #3d391d; }
 html[data-theme="dark"] .export-button { border-color: #5b5220; color: #f3e76c; background: #35321d; }
 html[data-theme="dark"] .export-button:hover { background: #403b20; }
+html[data-theme="dark"] .table-export-button { border-color: #5b5220; color: #f3e76c; background: #35321d; }
+html[data-theme="dark"] .table-export-button:hover { background: #403b20; }
 html[data-theme="dark"] .kpi-icon.green { color: #f3e76c; background: #3d391d; }
 html[data-theme="dark"] .kpi-icon.blue { color: #a1c5eb; background: #293846; }
 html[data-theme="dark"] .kpi-icon.amber { color: #e5c282; background: #413a2a; }
@@ -353,6 +360,8 @@ html[data-theme="dark"] .theme-button:hover { color: #f0dc21; }
   .panel-heading { align-items: start; padding: 14px 12px 12px; }
   .panel-heading h2 { font-size: 12px; }
   .panel-heading p { max-width: 200px; font-size: 9px; }
+  .sorting-table-actions { flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+  .table-export-button { gap: 3px; padding: 6px 7px; font-size: 9px; }
   .search-control { width: 130px; padding: 6px 7px; }
   .search-control input { font-size: 9px; }
   .data-table th { padding: 0 11px; }

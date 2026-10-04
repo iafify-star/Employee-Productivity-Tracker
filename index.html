@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
     <script src="app.js" defer></script>
   </head>
   <body>
@@ -217,10 +218,15 @@
                 <h2 data-i18n="sortingByHour">إنتاج كل sorter بالساعة</h2>
                 <p data-i18n="sortingByHourCaption">الكمية محسوبة حسب ساعة إكمال مهمة السورتينج.</p>
               </div>
-              <label class="search-control">
-                <span aria-hidden="true">⌕</span>
-                <input id="sorterSearch" type="search" placeholder="ابحث عن sorter" data-i18n-placeholder="searchSorter" autocomplete="off">
-              </label>
+              <div class="sorting-table-actions">
+                <button class="table-export-button" id="sortingExportButton" type="button" disabled>
+                  <span aria-hidden="true">⇩</span><span data-i18n="downloadSortingExcel">تنزيل الجدول Excel</span>
+                </button>
+                <label class="search-control">
+                  <span aria-hidden="true">⌕</span>
+                  <input id="sorterSearch" type="search" placeholder="ابحث عن sorter" data-i18n-placeholder="searchSorter" autocomplete="off">
+                </label>
+              </div>
             </div>
             <div class="table-scroll">
               <table class="data-table sorting-table">
@@ -263,10 +269,15 @@
                 <h2 data-i18n="xdockByEmployee">إنتاج XDOCK لكل موظف</h2>
                 <p data-i18n="xdockByEmployeeCaption">مجموع put_away_lines حسب username في وقت العمل المحدد.</p>
               </div>
-              <label class="search-control">
-                <span aria-hidden="true">⌕</span>
-                <input id="xdockSearch" type="search" placeholder="ابحث عن موظف" data-i18n-placeholder="searchEmployee" autocomplete="off">
-              </label>
+              <div class="sorting-table-actions">
+                <button class="table-export-button" id="xdockExportButton" type="button" disabled>
+                  <span aria-hidden="true">⇩</span><span data-i18n="downloadXdockExcel">تنزيل الجدول Excel</span>
+                </button>
+                <label class="search-control">
+                  <span aria-hidden="true">⌕</span>
+                  <input id="xdockSearch" type="search" placeholder="ابحث عن موظف" data-i18n-placeholder="searchEmployee" autocomplete="off">
+                </label>
+              </div>
             </div>
             <div class="table-scroll">
               <table class="data-table xdock-table">
