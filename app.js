@@ -69,17 +69,23 @@ const translations = {
     shareOfTotal: "نسبة من الإجمالي", noStagingData: "مفيش بيانات staging للتاريخ ده",
     stagingFooterCount: "{count} موظف", totalContainers: "إجمالي التوت: {count}",
     dataSource: "مصدر البيانات: Google Sheets", calculatedFromSheet: "يتم احتساب الإنتاج من سجلات الشيت",
-    downloadReport: "تحميل تقرير PDF", refresh: "تحديث البيانات",
+    downloadReport: "تحميل تقرير Excel", refresh: "تحديث البيانات",
     dayShift: "الوضع النهاري", nightShift: "الوضع الليلي",
     loadError: "ما قدرناش نحمّل البيانات: {details} تأكد إن الشيت متاح للعرض عبر الرابط، وبعدها جرّب التحديث.",
     attendanceLoadError: "بيانات الإنتاج اتحمّلت، لكن أسماء الموظفين ما اتحمّلتش: {details}. هنعرض أسماء المستخدمين بدلًا منها؛ راجع صلاحية شيت الحضور.",
-    exportError: "ما قدرناش ننزّل تقرير PDF: {details}",
+    exportError: "ما قدرناش ننزّل تقرير Excel: {details}",
     noDataLoaded: "لسه بيانات الشيت ما اتحمّلتش.",
-    noPdfLibrary: "مكتبات إنشاء PDF مش متاحة. اتأكد من اتصال الإنترنت وحاول تاني.",
+    noExcelReportLibrary: "مكتبة إنشاء تقرير Excel مش متاحة. اتأكد من اتصال الإنترنت وحاول تاني.",
+    reportLogoError: "ما قدرناش نجهز شعار التقرير.",
     reportTitle: "تقرير إنتاج الأقسام اليومي", reportSubtitle: "ملخص النتائج حسب القسم",
     reportNote: "كل نتيجة معروضة بوحدة قياس القسم، ولا يتم جمع وحدات الأقسام المختلفة.",
     department: "القسم", outputMetric: "مقياس الإنتاج", outputTotal: "إجمالي اليوم",
     sortingMetric: "sorted_qty (قطعة)", xdockMetric: "put_away_lines", stagingMetric: "توت فريدة",
+    reportSummarySheet: "ملخص الأقسام", reportHandoverSheet: "متابعة التسليم",
+    reportHandoverTitle: "متابعة التسليم والمتبقي", reportHandoverInstructions: "المتبقي محسوب تلقائيًا لـ Sorting batch وXDOCK. اكتب Pending Qty وDS وTotes للـ Staging يدويًا.",
+    delivered: "ما تم تسليمه", remaining: "Pending Qty / المتبقي", darkstores: "DS", totes: "Totes",
+    handoverStatus: "حالة التسليم", notes: "ملاحظات",
+    notStarted: "لم يبدأ", inProgress: "جاري", completed: "تم",
     highestSortingHour: "أعلى ساعة سورتينج", employeeName: "اسم الموظف",
     username: "username", totalQuantity: "الإجمالي (قطعة)",
     totalPutAwayLinesLabel: "put_away_lines",
@@ -147,17 +153,23 @@ const translations = {
     shareOfTotal: "Share of total", noStagingData: "No staging data for this date",
     stagingFooterCount: "{count} employees", totalContainers: "Total: {count} unique totes",
     dataSource: "Data source: Google Sheets", calculatedFromSheet: "Output is calculated from sheet records",
-    downloadReport: "Download PDF report", refresh: "Refresh data",
+    downloadReport: "Download Excel report", refresh: "Refresh data",
     dayShift: "Light mode", nightShift: "Dark mode",
     loadError: "Could not load data: {details} Make sure the sheet is accessible to anyone with the link, then refresh.",
     attendanceLoadError: "Production data loaded, but employee names could not be loaded: {details}. Usernames will be shown instead; check access to the attendance sheet.",
-    exportError: "Could not download the PDF report: {details}",
+    exportError: "Could not download the Excel report: {details}",
     noDataLoaded: "Sheet data has not loaded yet.",
-    noPdfLibrary: "The PDF libraries are unavailable. Check your internet connection and try again.",
+    noExcelReportLibrary: "The Excel report library is unavailable. Check your internet connection and try again.",
+    reportLogoError: "Could not prepare the report logo.",
     reportTitle: "Daily department output report", reportSubtitle: "Results by department",
     reportNote: "Each result uses its department's own unit; different department units are not combined.",
     department: "Department", outputMetric: "Output metric", outputTotal: "Daily total",
     sortingMetric: "sorted_qty (items)", xdockMetric: "put_away_lines", stagingMetric: "Unique totes",
+    reportSummarySheet: "Department summary", reportHandoverSheet: "Handover tracker",
+    reportHandoverTitle: "Handover and remaining work", reportHandoverInstructions: "Pending quantities for Sorting batch and XDOCK are calculated automatically. Fill Staging Pending Qty, DS, and Totes manually.",
+    delivered: "Delivered", remaining: "Pending Qty / remaining", darkstores: "DS", totes: "Totes",
+    handoverStatus: "Handover status", notes: "Notes",
+    notStarted: "Not started", inProgress: "In progress", completed: "Completed",
     highestSortingHour: "Most productive sorting hour", employeeName: "Employee name",
     username: "Username", totalQuantity: "Total (items)",
     totalPutAwayLinesLabel: "put_away_lines",
@@ -756,78 +768,246 @@ function renderOverviewRanking(selector, people, total, unitLabel, emptyMessage)
   }).join("");
 }
 
-async function exportPdfReport() {
+async function exportDepartmentWorkbook() {
   if (!state.loaded) throw new Error(t("noDataLoaded"));
-  if (!window.html2canvas || !window.jspdf?.jsPDF) throw new Error(t("noPdfLibrary"));
+  if (!window.ExcelJS) throw new Error(t("noExcelReportLibrary"));
 
+  const reportText = {
+    title: "Daily Department Output Report",
+    subtitle: "Department results summary",
+    note: "Each result uses its department's own unit; output units are not combined.",
+    department: "Department",
+    outputMetric: "Output metric",
+    outputTotal: "Daily total",
+    sorting: "Sorting batch",
+    sortingMetric: "sorted_qty (items)",
+    xdock: "Sorting XDOCK",
+    xdockMetric: "put_away_lines",
+    staging: "Staging",
+    stagingMetric: "Unique totes",
+    summarySheet: "Department summary",
+    handoverSheet: "Handover tracker",
+    handoverTitle: "Handover and remaining work",
+    handoverInstructions: "Pending quantities for Sorting batch and XDOCK are calculated automatically. Enter Staging Pending Qty, DS, and Totes manually.",
+    delivered: "Delivered",
+    remaining: "Pending Qty / remaining",
+    darkstores: "DS",
+    totes: "Totes",
+    handoverStatus: "Handover status",
+    notes: "Notes",
+    reportDate: "Report date",
+    workHours: "Work hours",
+    notStarted: "Not started",
+    inProgress: "In progress",
+    completed: "Completed",
+  };
   const sorting = getSortingReport();
   const xdock = getXdockReport();
   const staging = getStagingReport();
-  const date = new Date(`${dateInput.value}T00:00:00`);
-  const formattedDate = Number.isNaN(date.getTime())
-    ? dateInput.value
-    : new Intl.DateTimeFormat(state.language === "ar" ? "ar-EG" : "en-US", {
-      year: "numeric", month: "long", day: "numeric",
-    }).format(date);
   const departments = [
-    [t("sorting"), t("sortingMetric"), sorting.total],
-    [t("xdock"), t("xdockMetric"), xdock.total],
-    [t("staging"), t("stagingMetric"), staging.total],
+    [reportText.sorting, reportText.sortingMetric, sorting.total],
+    [reportText.xdock, reportText.xdockMetric, xdock.total],
+    [reportText.staging, reportText.stagingMetric, staging.total],
   ];
-  const report = document.createElement("section");
-  report.className = "department-report-pdf";
-  report.dir = state.language === "ar" ? "rtl" : "ltr";
-  report.innerHTML = `
-    <header class="department-report-header">
-      <span class="department-report-label">${escapeHtml(t("reportSubtitle"))}</span>
-      <h1>${escapeHtml(t("reportTitle"))}</h1>
-      <p>${escapeHtml(t("reportSubtitle"))}</p>
-    </header>
-    <div class="department-report-meta">
-      <div><span>${escapeHtml(t("reportDate"))}</span><strong>${escapeHtml(formattedDate)}</strong></div>
-      <div><span>${escapeHtml(t("workHours"))}</span><strong>${escapeHtml(`${formatHour(Number(workStartInput.value))} – ${formatHour(Number(workEndInput.value))}`)}</strong></div>
-    </div>
-    <table>
-      <thead><tr><th>${escapeHtml(t("department"))}</th><th>${escapeHtml(t("outputMetric"))}</th><th>${escapeHtml(t("outputTotal"))}</th></tr></thead>
-      <tbody>${departments.map(([department, metric, total]) => `
-        <tr><td>${escapeHtml(department)}</td><td>${escapeHtml(metric)}</td><td class="department-report-total">${escapeHtml(numberFormat.format(total))}</td></tr>
-      `).join("")}</tbody>
-    </table>
-    <footer>${escapeHtml(t("reportNote"))}</footer>`;
-  document.body.append(report);
+  const pendingQuantities = new Map([
+    [
+      reportText.sorting,
+      selectedRows(state.sorting, "job_started_at")
+        .reduce((total, row) => total + (Number(row.pending_qty) || 0), 0),
+    ],
+    [
+      reportText.xdock,
+      selectedRows(state.xdock, "job_started_at")
+        .reduce((total, row) => total + (Number(row.not_put_away_lines) || 0), 0),
+    ],
+  ]);
 
-  try {
-    await document.fonts.ready;
-    const canvas = await window.html2canvas(report, {
-      backgroundColor: "#ffffff",
-      scale: 2,
-      useCORS: true,
-      logging: false,
+  const logo = document.querySelector(".brand-logo");
+  await logo.decode();
+  const logoCanvas = document.createElement("canvas");
+  logoCanvas.width = logo.naturalWidth;
+  logoCanvas.height = logo.naturalHeight;
+  const logoContext = logoCanvas.getContext("2d");
+  if (!logoContext) throw new Error(t("reportLogoError"));
+  logoContext.drawImage(logo, 0, 0);
+
+  const workbook = new window.ExcelJS.Workbook();
+  workbook.creator = "noon MINUTES";
+  workbook.subject = dateInput.value;
+  workbook.title = reportText.title;
+  workbook.created = new Date();
+  const logoId = workbook.addImage({
+    base64: logoCanvas.toDataURL("image/png"),
+    extension: "png",
+  });
+  const rtl = false;
+  const colors = {
+    ink: "1E2B24",
+    muted: "68766D",
+    yellow: "E6CF00",
+    paleYellow: "FFF9CC",
+    canvas: "F8F8F4",
+    line: "DDE4DD",
+    white: "FFFFFF",
+    green: "E9F3EC",
+  };
+  const border = { style: "thin", color: { argb: `FF${colors.line}` } };
+  const setupSheet = (worksheet, widths, printArea, freezeRows) => {
+    worksheet.views = [{ state: "frozen", ySplit: freezeRows, rightToLeft: rtl }];
+    worksheet.pageSetup = {
+      paperSize: 9,
+      orientation: "landscape",
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 1,
+      printArea,
+      horizontalCentered: true,
+      margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 },
+    };
+    widths.forEach((width, index) => {
+      worksheet.getColumn(index + 1).width = width;
     });
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 12;
-    const scale = Math.min(
-      (pageWidth - margin * 2) / canvas.width,
-      (pageHeight - margin * 2) / canvas.height,
-    );
-    const imageWidth = canvas.width * scale;
-    const imageHeight = canvas.height * scale;
-    pdf.setProperties({ title: t("reportTitle"), subject: t("reportSubtitle") });
-    pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", (pageWidth - imageWidth) / 2, margin, imageWidth, imageHeight);
-    const downloadUrl = URL.createObjectURL(pdf.output("blob"));
-    const downloadLink = document.createElement("a");
-    downloadLink.href = downloadUrl;
-    downloadLink.download = `operations-department-report-${dateInput.value}.pdf`;
-    document.body.append(downloadLink);
-    downloadLink.click();
-    downloadLink.remove();
-    setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-  } finally {
-    report.remove();
+    worksheet.addImage(logoId, { tl: { col: 0.15, row: 0.2 }, ext: { width: 150, height: 113 } });
+    worksheet.getRow(1).height = 33;
+    worksheet.getRow(2).height = 25;
+  };
+  const styleTitle = (cell) => {
+    cell.font = { name: "Arial", size: 19, bold: true, color: { argb: `FF${colors.ink}` } };
+    cell.alignment = { vertical: "middle", horizontal: rtl ? "right" : "left" };
+  };
+  const styleSubtitle = (cell) => {
+    cell.font = { name: "Arial", size: 11, color: { argb: `FF${colors.muted}` } };
+    cell.alignment = { vertical: "middle", horizontal: rtl ? "right" : "left" };
+  };
+  const styleHeader = (row) => {
+    row.height = 28;
+    row.eachCell((cell) => {
+      cell.font = { name: "Arial", size: 11, bold: true, color: { argb: `FF${colors.ink}` } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: `FF${colors.paleYellow}` } };
+      cell.alignment = { vertical: "middle", horizontal: rtl ? "right" : "left", wrapText: true };
+      cell.border = { top: border, bottom: border };
+    });
+  };
+
+  const summarySheet = workbook.addWorksheet(reportText.summarySheet, { views: [{ rightToLeft: rtl }] });
+  setupSheet(summarySheet, [24, 31, 22, 20, 20], "A1:E14", 8);
+  summarySheet.mergeCells("C1:E1");
+  summarySheet.mergeCells("C2:E2");
+  summarySheet.getCell("C1").value = reportText.title;
+  summarySheet.getCell("C2").value = reportText.subtitle;
+  styleTitle(summarySheet.getCell("C1"));
+  styleSubtitle(summarySheet.getCell("C2"));
+  summarySheet.mergeCells("A6:B6");
+  summarySheet.mergeCells("C6:E6");
+  summarySheet.getCell("A6").value = reportText.reportDate;
+  summarySheet.getCell("C6").value = dateInput.value;
+  summarySheet.getCell("A7").value = reportText.workHours;
+  summarySheet.mergeCells("C7:E7");
+  summarySheet.getCell("C7").value = `${formatHour(Number(workStartInput.value))} – ${formatHour(Number(workEndInput.value))}`;
+  for (const address of ["A6", "A7"]) {
+    summarySheet.getCell(address).font = { name: "Arial", bold: true, color: { argb: `FF${colors.muted}` } };
   }
+  for (const address of ["C6", "C7"]) {
+    summarySheet.getCell(address).font = { name: "Arial", color: { argb: `FF${colors.ink}` } };
+  }
+  const summaryHeader = summarySheet.getRow(9);
+  [reportText.department, reportText.outputMetric, reportText.outputTotal, "", ""].forEach((value, index) => {
+    summaryHeader.getCell(index + 1).value = value;
+  });
+  styleHeader(summaryHeader);
+  departments.forEach(([department, metric, total], index) => {
+    const row = summarySheet.getRow(10 + index);
+    [department, metric, total, "", ""].forEach((value, columnIndex) => {
+      row.getCell(columnIndex + 1).value = value;
+    });
+    row.height = 31;
+    row.eachCell((cell, columnNumber) => {
+      cell.font = { name: "Arial", size: columnNumber === 3 ? 13 : 11, bold: columnNumber === 3, color: { argb: `FF${colors.ink}` } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: row.number % 2 ? `FF${colors.canvas}` : `FF${colors.white}` } };
+      cell.border = { bottom: border };
+      cell.alignment = { vertical: "middle", horizontal: columnNumber === 3 ? "center" : (rtl ? "right" : "left") };
+    });
+    row.getCell(3).numFmt = "#,##0";
+  });
+  summarySheet.mergeCells("A13:E13");
+  summarySheet.getCell("A13").value = reportText.note;
+  summarySheet.getCell("A13").font = { name: "Arial", italic: true, size: 10, color: { argb: `FF${colors.muted}` } };
+  summarySheet.getCell("A13").alignment = { wrapText: true, vertical: "middle", horizontal: rtl ? "right" : "left" };
+  summarySheet.getRow(13).height = 32;
+
+  const handoverSheet = workbook.addWorksheet(reportText.handoverSheet, { views: [{ rightToLeft: rtl }] });
+  setupSheet(handoverSheet, [24, 18, 23, 23, 12, 14, 20, 32], "A1:H26", 10);
+  handoverSheet.mergeCells("C1:H1");
+  handoverSheet.mergeCells("C2:H2");
+  handoverSheet.getCell("C1").value = reportText.handoverTitle;
+  handoverSheet.getCell("C2").value = reportText.title;
+  styleTitle(handoverSheet.getCell("C1"));
+  styleSubtitle(handoverSheet.getCell("C2"));
+  handoverSheet.mergeCells("A6:H6");
+  handoverSheet.getCell("A6").value = `${reportText.reportDate}: ${dateInput.value}    |    ${reportText.workHours}: ${formatHour(Number(workStartInput.value))} – ${formatHour(Number(workEndInput.value))}`;
+  handoverSheet.getCell("A6").font = { name: "Arial", bold: true, color: { argb: `FF${colors.muted}` } };
+  handoverSheet.getCell("A6").alignment = { vertical: "middle", horizontal: rtl ? "right" : "left" };
+  handoverSheet.mergeCells("A8:H8");
+  handoverSheet.getCell("A8").value = reportText.handoverInstructions;
+  handoverSheet.getCell("A8").font = { name: "Arial", italic: true, color: { argb: `FF${colors.muted}` } };
+  handoverSheet.getCell("A8").alignment = { wrapText: true, vertical: "middle", horizontal: rtl ? "right" : "left" };
+  handoverSheet.getRow(8).height = 30;
+  const handoverHeader = handoverSheet.getRow(10);
+  [
+    reportText.department, reportText.outputTotal, reportText.delivered, reportText.remaining,
+    reportText.darkstores, reportText.totes, reportText.handoverStatus, reportText.notes,
+  ]
+    .forEach((value, index) => {
+      handoverHeader.getCell(index + 1).value = value;
+    });
+  styleHeader(handoverHeader);
+
+  departments.forEach(([department, , total], departmentIndex) => {
+    for (let entry = 0; entry < 5; entry += 1) {
+      const row = handoverSheet.getRow(11 + departmentIndex * 5 + entry);
+      [
+        department,
+        entry === 0 ? total : null,
+        "",
+        entry === 0 ? pendingQuantities.get(department) ?? "" : "",
+        "",
+        "",
+        "",
+        "",
+      ].forEach((value, columnIndex) => {
+        row.getCell(columnIndex + 1).value = value;
+      });
+      row.height = 30;
+      row.eachCell({ includeEmpty: true }, (cell, columnNumber) => {
+        cell.font = { name: "Arial", size: 10, color: { argb: `FF${colors.ink}` } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: entry % 2 ? `FF${colors.white}` : `FF${colors.canvas}` } };
+        cell.border = { bottom: border, left: border, right: border };
+        cell.alignment = { vertical: "middle", horizontal: columnNumber === 2 ? "center" : (rtl ? "right" : "left"), wrapText: true };
+      });
+      row.getCell(2).numFmt = "#,##0";
+      [3, 4, 5, 6].forEach((columnNumber) => {
+        row.getCell(columnNumber).numFmt = "#,##0";
+      });
+      row.getCell(7).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: [`"${reportText.notStarted},${reportText.inProgress},${reportText.completed}"`],
+      };
+    }
+  });
+  handoverSheet.autoFilter = { from: "A10", to: "H25" };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const url = URL.createObjectURL(new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `operations-department-report-${dateInput.value}.xlsx`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function formatHour(hour) {
@@ -1001,7 +1181,7 @@ document.querySelector("#exportButton").addEventListener("click", async () => {
   const button = document.querySelector("#exportButton");
   button.disabled = true;
   try {
-    await exportPdfReport();
+    await exportDepartmentWorkbook();
   } catch (error) {
     showError("exportError", { details: error.message });
   } finally {
